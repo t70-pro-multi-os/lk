@@ -29,6 +29,14 @@ extern uint8_t *volatile lk_disp_fb;		/* the frame buffer (three pages) */
 extern volatile uint32_t lk_disp_fb_offset;	/* the console page in it */
 void lk_wdt_kick(void);
 void lk_wdt_enable(int on);
+void lk_fastboot_register(const char *prefix, void *handler, int a, int b);
+void lk_fastboot_fail(const char *reason);
+void lk_fastboot_okay(const char *info);
+void lk_fb_cmd_continue(const char *arg, void *data, unsigned size);
+void lk_boot_images_check(void *boot, void *vendor_boot, void *init_boot);
+void lk_boot_images_set(void *boot, void *vendor_boot, void *init_boot);
+int lk_mblock_free(unsigned long pa);
+int lk_vmm_free_region(void *aspace, void *va);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;
 /* lk_boot_mode values (set before the mt_boot app runs, f_00d3d0). */

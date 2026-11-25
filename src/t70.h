@@ -71,6 +71,12 @@ void t70_reboot_preloader(void) __attribute__((noreturn));
 
 /* fastboot.c */
 int t70_fastboot_start(void);
+const char *t70_boot_image_problem(const void *img, unsigned long size);
+void t70_fastboot_register_continue(const char *name, void *handler, int a, int b);
+void t70_boot_images_check(void *boot, void *vendor_boot, void *init_boot);
+void t70_boot_images_set(void *boot, void *vendor_boot, void *init_boot);
+int t70_fastboot_buffer_free(unsigned long pa);
+int t70_fastboot_buffer_unmap(void *aspace, void *va);
 
 /* menu.c */
 void t70_menu(struct t70_cfg *cfg);

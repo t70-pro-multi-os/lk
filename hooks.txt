@@ -27,3 +27,11 @@
 # boot mode is unchanged. The earlier check at 0xd424 only logs the key.
 00d464 1: mov w0, wzr
 00d4a0 1: mov w0, wzr
+
+# fastboot boot (src/fastboot.c): register "boot" next to "continue", and hand
+# the downloaded image to the boot code in place of the boot partition.
+008358 1: bl t70_fastboot_register_continue
+05b64c 1: bl t70_boot_images_check
+05b698 1: bl t70_boot_images_set
+0087d8 1: bl t70_fastboot_buffer_free
+0087e8 1: bl t70_fastboot_buffer_unmap

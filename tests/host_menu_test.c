@@ -60,6 +60,26 @@ uint64_t lk_time_us(void) { return now_us; }
 void lk_wdt_kick(void) { last_kick = now_us; }
 static int wdt_on = 1;
 void lk_wdt_enable(int on) { wdt_on = on; }
+static const char *fb_reply;
+static void *boot_set;
+static int fb_registered_boot, fb_continued;
+static void (*fb_boot_handler)(const char *, void *, unsigned);
+void lk_fastboot_register(const char *p, void *h, int a, int b)
+{
+	(void)a; (void)b;
+	if (!strcmp(p, "boot")) {
+		fb_registered_boot = 1;
+		fb_boot_handler = (void (*)(const char *, void *, unsigned))h;
+	}
+}
+void lk_fastboot_fail(const char *r) { fb_reply = r; }
+void lk_fastboot_okay(const char *r) { (void)r; }
+void lk_fb_cmd_continue(const char *a, void *d, unsigned s) { (void)a; (void)d; (void)s; fb_continued = 1; }
+void lk_boot_images_check(void *b, void *v, void *i) { (void)v; (void)i; boot_set = b; }
+void lk_boot_images_set(void *b, void *v, void *i) { (void)v; (void)i; boot_set = b; }
+static int buffer_freed;
+int lk_mblock_free(unsigned long pa) { (void)pa; buffer_freed++; return 0; }
+int lk_vmm_free_region(void *a, void *v) { (void)a; (void)v; buffer_freed++; return 0; }
 void lk_delay_us(uint32_t us)
 {
 	now_us += us;
@@ -411,6 +431,42 @@ int main(void)
 	name = "fastboot: the hardware watchdog is stopped, no idle timer";
 	wdt_on = 1;
 	CHECK(t70_fastboot_start() == 0 && wdt_on == 0, "watchdog still on");
+
+	name = "fastboot boot: registered with continue, checks the image, boots it";
+	{
+		static uint8_t img[4096 * 4];
+		int part = 0x1234;
+
+		t70_fastboot_register_continue("continue", (void *)0, 0, 0);
+		CHECK(fb_registered_boot && fb_boot_handler, "boot not registered");
+		t70_boot_images_set(&part, 0, 0);
+		CHECK(boot_set == &part, "partition image not used without fastboot boot");
+		t70_fastboot_buffer_free(0); t70_fastboot_buffer_unmap(0, 0);
+		CHECK(buffer_freed == 2, "buffer not freed after a plain fastboot");
+		memcpy(img, "ANDROID!", 8);
+		img[8] = 0x10; img[9] = 0x30;		/* kernel 0x3010 bytes: 4 pages, 20 KiB with the header */
+		img[40] = 4;
+		CHECK(t70_boot_image_problem(img, sizeof(img)) != NULL, "too large image accepted");
+		fb_boot_handler("", img, sizeof(img));
+		CHECK(fb_reply && !fb_continued, "too large image booted");
+		img[9] = 0x10;				/* 0x1010 bytes: 2 pages */
+		CHECK(t70_boot_image_problem(img, sizeof(img)) == NULL, "good image refused");
+		img[40] = 2;
+		CHECK(t70_boot_image_problem(img, sizeof(img)) != NULL, "header v2 accepted");
+		img[40] = 4;
+		img[0] = 'X';
+		CHECK(t70_boot_image_problem(img, sizeof(img)) != NULL, "bad magic accepted");
+		img[0] = 'A';
+		fb_reply = NULL;
+		fb_boot_handler("", img, sizeof(img));
+		CHECK(!fb_reply && fb_continued, "good image not booted");
+		t70_boot_images_check(&part, 0, 0);
+		CHECK(boot_set == img, "downloaded image not checked");
+		t70_boot_images_set(&part, 0, 0);
+		CHECK(boot_set == img, "downloaded image not used");
+		buffer_freed = 0; t70_fastboot_buffer_free(0); t70_fastboot_buffer_unmap(0, 0);
+		CHECK(buffer_freed == 0, "buffer freed under the boot image");
+	}
 
 	name = "no frame buffer: the wait only, no menu";
 	lk_fbcon = NULL;

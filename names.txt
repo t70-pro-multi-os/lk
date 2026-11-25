@@ -16,6 +16,15 @@
 1809d0 lk_disp_fb_offset     # u32: byte offset of the console page (lk_fbcon->fb = lk_disp_fb + this)
 05430c lk_disp_update        # void (int x, int y, int w, int h): clean the frame buffer cache and show it
                              #   (the area is ignored: the whole buffer is shown)
+007750 lk_fastboot_register  # void (const char *prefix, void (*handle)(const char *arg, void *data,
+                             #   unsigned size), int, int): the last two are the stock access settings
+007acc lk_fastboot_fail      # void (const char *reason): reply FAIL
+007b04 lk_fastboot_okay      # void (const char *info): reply OKAY
+008d58 lk_fb_cmd_continue    # the handler of "continue": OKAY, leave fastboot, boot
+00d2d8 lk_boot_images_check  # (boot, vendor_boot, init_boot): checks the loaded image headers
+014fa4 lk_mblock_free        # int (u64 pa): gives a reserved block back (the fastboot buffer, f_008228)
+06b140 lk_vmm_free_region    # int (void *aspace, void *va): unmaps it
+00d268 lk_boot_images_set    # (boot, vendor_boot, init_boot): the images the boot code uses
 044028 lk_wdt_enable         # void (int on): 0 stops the hardware watchdog (the stock key boot menu
                              #   f_00da08 does), 1 starts it again
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);

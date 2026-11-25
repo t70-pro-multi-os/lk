@@ -43,8 +43,10 @@ volume down for recovery and volume up for factory, are turned off: both
 are in the menu). With the wait off the screen is left as
 it is and only a held volume key opens the menu. A boot whose mode is
 already chosen (recovery, factory, META, fastboot, download) does not wait.
-SD card boot, `fastboot boot` (missing from the stock fastboot) and EDK2
-boot are not done yet. Checked by `make test` (menu logic and drawing on
+`fastboot boot boot.img` (missing from the stock fastboot) boots a boot
+image (header v3/v4) from RAM in place of this slot's boot partition, with
+this slot's vendor_boot and init_boot (`src/fastboot.c`). SD card boot and
+EDK2 boot are not done yet. Checked by `make test` (menu logic and drawing on
 the host), `make relocheck` and `make check`.
 
 On the device (slot B, 2026-11-25) the first drawn menu showed nothing,

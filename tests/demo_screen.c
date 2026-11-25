@@ -77,6 +77,16 @@ static void emit(int force)
 uint64_t lk_time_us(void) { return now_us; }
 void lk_wdt_kick(void) {}
 void lk_wdt_enable(int on) { (void)on; }
+void lk_fastboot_register(const char *p, void *h, int a, int b) { (void)p; (void)h; (void)a; (void)b; }
+void lk_fastboot_fail(const char *r) { (void)r; }
+void lk_fastboot_okay(const char *r) { (void)r; }
+void lk_fb_cmd_continue(const char *a, void *d, unsigned s) { (void)a; (void)d; (void)s; }
+void lk_boot_images_check(void *b, void *v, void *i) { (void)b; (void)v; (void)i; }
+void lk_boot_images_set(void *b, void *v, void *i) { (void)b; (void)v; (void)i; }
+int lk_mblock_free(unsigned long pa) { (void)pa; return 0; }
+int lk_vmm_free_region(void *a, void *v) { (void)a; (void)v; return 0; }
+
+
 void t70_test_text(const char *s) { (void)s; }
 void lk_delay_us(uint32_t us) { emit(0); now_us += us; sync_kpd(); }
 int lk_detect_key(int key) { return key == LK_KEY_POWER && (held() & T70_KEY_POWER); }
