@@ -37,7 +37,7 @@ def main():
     print(f"  display: ready {rec['disp_ready']}, frame buffer {rec['disp_fb']:#x} + console page {rec['disp_off']:#x}")
     print(f"  gfx_init {rec['gfx']}, wait {rec['wait_ms']} ms, keys at start {rec['keys_start']:#x}, "
           f"boot mode {rec['boot_mode']}, flushes {rec['flushes']}, previous misc write {rec['misc_write']}")
-    print(f"  pixels: console page first {px[0]:#010x} (0 expected), bar {px[1]:#010x} (0xb4b4b4 expected); "
+    print(f"  pixels: console page first {px[0]:#010x} (0 expected), bar {px[1]:#010x} (0xffb4b4b4 expected); "
           f"page 0 first {px[2]:#010x}, bar {px[3]:#010x}")
 
 

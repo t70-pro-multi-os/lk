@@ -5,6 +5,11 @@
  * from the stock console state, and lk_disp_update() cleans the cache and
  * shows it, as the stock console does after printing.
  *
+ * With 4 bytes per pixel the top byte is alpha: the console page lies over
+ * the page with the boot logo, so 0 shows the logo and 0xff hides it. The
+ * stock console writes its text with 0xff and clears to 0. Every colour we
+ * draw is opaque; gfx_clear() makes the whole page transparent again.
+ *
  * Text uses the stock 8x16 font. Enlarged glyphs are smoothed with Scale2x
  * (2x, and twice for 4x) and Scale3x, so diagonals and curves stay round.
  */
@@ -43,7 +48,7 @@ static uint32_t pixel(uint32_t rgb)
 {
 	if (g.bpp == 2)
 		return ((rgb >> 8) & 0xf800) | ((rgb >> 5) & 0x07e0) | ((rgb >> 3) & 0x001f);
-	return rgb & 0xffffff;	/* as the stock console writes it: top byte 0 */
+	return 0xff000000u | (rgb & 0xffffff);	/* opaque, as the stock console writes text */
 }
 
 static void span(int x, int y, int n, uint32_t v)
@@ -248,7 +253,17 @@ void gfx_text_center(int y, int scale, uint32_t rgb, const char *s)
 	gfx_text((g.w - gfx_text_w(scale, s)) / 2, y, scale, rgb, s);
 }
 
-/* Everything on the screen to 3/8 of its brightness. */
+/* The whole page transparent: the boot logo underneath shows (RGB565 has
+ * no alpha: black). */
+void gfx_clear(void)
+{
+	if (g.bpp == 4)
+		memset(g.fb, 0, (unsigned long)g.pitch * g.h);
+	else
+		gfx_fill(0, 0, g.w, g.h, 0);
+}
+
+/* Everything on the screen to 3/8 of its brightness; alpha is kept. */
 void gfx_dim(void)
 {
 	for (int y = 0; y < g.h; y++) {
@@ -256,7 +271,7 @@ void gfx_dim(void)
 		if (g.bpp == 4) {
 			uint32_t *p = (uint32_t *)row;
 			for (int x = 0; x < g.w; x++)
-				p[x] = ((p[x] >> 2) & 0x3f3f3f) + ((p[x] >> 3) & 0x1f1f1f);
+				p[x] = (p[x] & 0xff000000u) + ((p[x] >> 2) & 0x3f3f3f) + ((p[x] >> 3) & 0x1f1f1f);
 		} else {
 			uint16_t *p = (uint16_t *)row;
 			for (int x = 0; x < g.w; x++)

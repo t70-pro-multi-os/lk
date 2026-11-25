@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-or-later */
-/* Drawing straight into the stock lk console frame buffer. Colours are 0xRRGGBB. */
+/* Drawing straight into the stock lk console frame buffer. Colours are 0xRRGGBB,
+ * always drawn opaque over the boot logo page. */
 #pragma once
 #include <stdint.h>
 
@@ -12,5 +13,6 @@ void gfx_round(int x, int y, int w, int h, int r, uint32_t rgb);
 int gfx_text(int x, int y, int scale, uint32_t rgb, const char *s);
 int gfx_text_w(int scale, const char *s);
 void gfx_text_center(int y, int scale, uint32_t rgb, const char *s);
+void gfx_clear(void);		/* all transparent: the boot logo underneath shows */
 void gfx_dim(void);		/* darken the whole screen (behind a message box) */
 void gfx_flush(void);		/* show what was drawn */

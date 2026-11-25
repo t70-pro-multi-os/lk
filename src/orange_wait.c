@@ -2,10 +2,12 @@
 /*
  * Called in place of the stock orange-state warning screen (hooks.txt): the
  * stock lk would clear the screen, print the unlocked-device warning and wait
- * 5 s. We wait the configured time (default 5 s, the stock wait) on a black
- * screen with a hint and a bar running down at the bottom; any key during
- * the wait, or a volume key held when it starts, opens the boot menu. With
- * the wait set to 0 and no key held the screen is left as it is.
+ * 5 s. We wait the configured time (default 5 s, the stock wait) with the
+ * boot logo still on the screen and a hint and a bar running down under it;
+ * any key during the wait, or a volume key held when it starts, opens the
+ * boot menu. With the wait set to 0 and no key held the screen is left as it
+ * is. Afterwards the console page is transparent again, so the logo stays
+ * while the kernel starts, as after the stock warning.
  */
 #include "gfx.h"
 #include "lk_stock.h"
@@ -54,9 +56,9 @@ static void diag_console(const struct t70_cfg *cfg, unsigned keys)
 		t70_poll_delay();
 }
 
-/* What the first countdown screen left in memory: the first pixel (black) and
- * the middle of the bar (0xb4b4b4) in the console page, then the same two in
- * the first page of the display frame buffer. */
+/* What the first countdown screen left in memory: the first pixel
+ * (transparent, 0) and the middle of the bar (0xffb4b4b4) in the console
+ * page, then the same two in the first page of the display frame buffer. */
 static void diag_pixels(void)
 {
 	struct lk_fbcon *c = lk_fbcon;
@@ -108,7 +110,7 @@ void t70_orange_wait(void)
 		DIAG(D_WAIT_OFF);
 		return;
 	}
-	gfx_fill(0, 0, gfx_w(), gfx_h(), 0);
+	gfx_clear();
 	gfx_text_center(gfx_h() - 220, 2, 0x8c8c8c, "Press any key for boot options");
 	bar(limit, limit);
 #ifdef T70_DIAG
@@ -128,7 +130,7 @@ void t70_orange_wait(void)
 			bar(limit - now, limit);
 		t70_poll_delay();
 	}
-	gfx_fill(0, 0, gfx_w(), gfx_h(), 0);
+	gfx_clear();
 	gfx_flush();
 	DIAG(D_DONE);
 }

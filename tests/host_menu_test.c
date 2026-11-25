@@ -95,6 +95,7 @@ void t70_test_text(const char *s)
 		strcat(screen, "\n");
 	}
 }
+/* all zero: transparent, the boot logo shows */
 static int fb_black(void)
 {
 	for (uint32_t i = 0; i < fbcon.size; i++)
@@ -195,7 +196,7 @@ int main(void)
 	      "console lines");
 	CHECK(d.magic == T70_DIAG_MAGIC && d.seq == 1 && d.size_of == sizeof(d) && d.stage == 6, "record");
 	CHECK(d.gfx == 0 && d.width == 2240 && d.height == 1400 && d.bytes_pp == 4 && d.disp_ready == 1, "frame buffer");
-	CHECK(d.px[0] == 0 && d.px[1] == 0xb4b4b4 && d.px[3] == 0xb4b4b4 && d.flushes > 40, "pixels / flushes");
+	CHECK(d.px[0] == 0 && d.px[1] == 0xffb4b4b4 && d.px[3] == 0xffb4b4b4 && d.flushes > 40, "pixels / flushes");
 	CHECK(d.t_entry < 100000 && d.t_last >= 7000000 && d.misc_write == 0, "times");
 	CHECK(misc[0] == 0 && misc[0x800] == 0 && misc[T70_CFG_OFFSET] == 0, "touched other misc data");
 
@@ -240,6 +241,9 @@ int main(void)
 	press(500, 100, UP); press(1000, 100, DOWN); press(1500, 100, PWR); run();
 	CHECK(halted && halt_action == LK_HALT_REBOOT && halt_reason == LK_REASON_COLD, "no cold reboot");
 	CHECK(misc[0x800] == '_' && misc[0x801] == 'b', "slot b not set");
+	/* the menu and the message are opaque (alpha 0xff), also where dimmed */
+	CHECK(((uint32_t *)fbcon.fb)[0] >> 24 == 0xff && ((uint32_t *)fbcon.fb)[2240 * 700 + 1120] >> 24 == 0xff,
+	      "menu or message not opaque");
 
 	name = "from slot B, switch to slot A";
 	reset(); strcpy(slot, "_b");

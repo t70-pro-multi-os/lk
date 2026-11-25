@@ -330,6 +330,6 @@ void t70_menu(struct t70_cfg *cfg)
 		}
 		t70_poll_delay();
 	}
-	gfx_fill(0, 0, gfx_w(), gfx_h(), 0);	/* black, as the stock warning left it */
+	gfx_clear();	/* the boot logo again, as after the stock warning */
 	gfx_flush();
 }
