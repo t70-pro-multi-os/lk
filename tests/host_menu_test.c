@@ -161,6 +161,7 @@ static void reset(void)
 #endif
 	kpd_dead = 0;
 	kpd_sparse = 0;
+	lk_boot_mode = LK_MODE_NORMAL;
 	sync_kpd();
 }
 
@@ -335,6 +336,20 @@ int main(void)
 	name = "power bouncing as it is let go does not select";
 	reset(); press(1000, 100, PWR); press(1130, 20, PWR); run();
 	CHECK(!halted && strstr(screen, "Boot options") && now_us > 60000000, "bounce selected Continue");
+
+	name = "recovery boot: no wait, no menu";
+	reset(); lk_boot_mode = LK_MODE_RECOVERY; press(0, 300, DOWN); run();
+	CHECK(!halted && !screen[0] && flushes == 0 && now_us < 100000, "waited or drew");
+
+	name = "factory and fastboot modes: no wait";
+	reset(); lk_boot_mode = LK_MODE_FACTORY; run();
+	CHECK(flushes == 0 && now_us < 100000, "factory waited");
+	reset(); lk_boot_mode = LK_MODE_FASTBOOT; run();
+	CHECK(flushes == 0 && now_us < 100000, "fastboot waited");
+
+	name = "switched on by the charger cable: the normal wait";
+	reset(); lk_boot_mode = LK_MODE_KPOC; run();
+	CHECK(now_us >= 5000000 && now_us < 5100000 && flushes > 40, "no wait");
 
 	name = "a stuck key is ignored after 3 s";
 	reset(); press(100, 1000000, DOWN); press(5000, 100, PWR); run();

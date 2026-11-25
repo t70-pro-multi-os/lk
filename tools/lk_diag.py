@@ -16,7 +16,7 @@ FIELDS = ("magic seq size_of stage t_entry t_last fbcon fb size colours bytes_pp
           "disp_ready disp_fb disp_off boot_mode gfx wait_ms keys_start flushes misc_write").split()
 STAGES = {1: "started (console lines shown)", 2: "no usable frame buffer: waited only",
           3: "wait off, no key: nothing drawn", 4: "countdown drawn", 5: "menu opened",
-          6: "wait over, booting", 7: "menu closed, booting"}
+          6: "wait over, booting", 7: "menu closed, booting", 8: "boot mode already chosen: no wait"}
 
 
 def main():

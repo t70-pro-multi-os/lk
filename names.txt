@@ -18,7 +18,7 @@
                              #   (the area is ignored: the whole buffer is shown)
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);
                              #   the stock lk sets it to 30 s (f_0037f8). Console text shows by itself.
-0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)
+0c9918 lk_boot_mode          # u8: boot mode (0 normal, 2 recovery, 4 factory, 8 power-off charging, 99 fastboot)
 05b948 lk_orange_warning     # the unlocked (orange state) warning screen
 01a810 lk_get_slot_suffix    # const char *(void): "_a" or "_b", the slot this lk booted
 01ac70 lk_set_active_slot    # int (const char *suffix): "_a"/"_b" -> misc boot_ctrl; 0 on success

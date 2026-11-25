@@ -30,6 +30,18 @@ extern volatile uint32_t lk_disp_fb_offset;	/* the console page in it */
 void lk_wdt_kick(void);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;
+/* lk_boot_mode values (set before the mt_boot app runs, f_00d3d0). */
+enum {
+	LK_MODE_NORMAL = 0,
+	LK_MODE_META = 1,
+	LK_MODE_RECOVERY = 2,	/* misc message, RGU recovery mode or volume down held */
+	LK_MODE_FACTORY = 4,	/* volume up held */
+	LK_MODE_ADVMETA = 5,
+	LK_MODE_ATE_FACTORY = 6,
+	LK_MODE_KPOC = 8,	/* switched on by the charger cable */
+	LK_MODE_FASTBOOT = 99,	/* RGU bootloader mode */
+	LK_MODE_DOWNLOAD = 100,
+};
 
 /* lk_detect_key() indices (stock key table at data 0xbc530). */
 enum lk_key {

@@ -5,9 +5,11 @@
  * 5 s. We wait the configured time (default 5 s, the stock wait) with the
  * boot logo still on the screen and only a 1 px line along the bottom edge
  * running down; any key during the wait, or a volume key held when it
- * starts, opens the boot menu. With the wait set to 0 and no key held the screen is left as it
- * is. Afterwards the console page is transparent again, so the logo stays
- * while the kernel starts, as after the stock warning.
+ * starts, opens the boot menu. With the wait set to 0 and no key held the
+ * screen is left as it is. A boot whose mode is already chosen (recovery,
+ * factory, META, fastboot, download) goes on at once. Afterwards the console
+ * page is transparent again, so the logo stays while the kernel starts, as
+ * after the stock warning.
  */
 #include "gfx.h"
 #include "lk_stock.h"
@@ -30,7 +32,7 @@ static void bar(uint64_t left, uint64_t total)
 #ifdef T70_DIAG
 /* Diagnostic build (make DIAG=1): records in misc (diag.c), and two lines
  * printed with the stock console first, the way the stock warning was. */
-enum diag_stage { D_ENTRY = 1, D_NO_FB, D_WAIT_OFF, D_DRAWN, D_MENU, D_DONE, D_MENU_DONE };
+enum diag_stage { D_ENTRY = 1, D_NO_FB, D_WAIT_OFF, D_DRAWN, D_MENU, D_DONE, D_MENU_DONE, D_MODE };
 #define DIAG(stage) t70_diag(stage)
 
 static unsigned hi(const void *p) { return (unsigned)((uintptr_t)p >> 32); }
@@ -79,6 +81,24 @@ static void diag_pixels(void)
 #define DIAG(stage) do { } while (0)
 #endif
 
+/* Normal boots and power-off charging (switched on with the cable in) wait;
+ * a mode chosen by the misc message, the RGU boot mode or a key held at
+ * power-on is what the user asked for already. */
+static int mode_chosen(void)
+{
+	switch (lk_boot_mode) {
+	case LK_MODE_META:
+	case LK_MODE_RECOVERY:
+	case LK_MODE_FACTORY:
+	case LK_MODE_ADVMETA:
+	case LK_MODE_ATE_FACTORY:
+	case LK_MODE_FASTBOOT:
+	case LK_MODE_DOWNLOAD:
+		return 1;
+	}
+	return 0;
+}
+
 void t70_orange_wait(void)
 {
 	struct t70_cfg cfg;
@@ -86,6 +106,11 @@ void t70_orange_wait(void)
 	unsigned polls = 0;
 	int no_fb;
 
+	if (mode_chosen()) {
+		lk_dprintf("t70: boot mode %u, no wait\n", lk_boot_mode);
+		DIAG(D_MODE);
+		return;
+	}
 	t70_cfg_load(&cfg);
 	limit = (uint64_t)cfg.wait_ms * 1000;
 	/* Power still held from switching the tablet on must not open the menu;
