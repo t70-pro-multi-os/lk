@@ -17,6 +17,9 @@ enum action {
 	ACT_RECOVERY,
 	ACT_FASTBOOT,
 	ACT_FASTBOOTD,
+	ACT_FACTORY,
+	ACT_PRELOADER,
+	ACT_BROM,
 	ACT_WAIT,
 	ACT_REBOOT,
 	ACT_POWEROFF,
@@ -40,14 +43,20 @@ static int dimmed = 0;	/* the menu behind a message box is darkened (in .data) *
 
 /* Layout for the 2240x1400 panel: one centred column. */
 #define COL_W		1280
-#define ROW_H		76
-#define LIST_Y		300
+#define ROW_H		62
+#define TITLE_Y		90
+#define LIST_Y		250
+#define GROUP_GAP	18	/* above a group title (not the first) */
+#define GROUP_H		42	/* group title and the gap under it */
+#define KEYS_Y		112	/* key hints, from the bottom */
+#define BROM_WAIT_S	60
 #define KEY_GAP		18	/* key cap to its meaning */
 #define PAIR_GAP	72	/* between the two key hints */
 
 static const char *const group[ACT_COUNT] = {
 	[ACT_CONTINUE] = "START",
 	[ACT_RECOVERY] = "MODES",
+	[ACT_PRELOADER] = "USB DOWNLOAD",
 	[ACT_WAIT] = "SETTINGS",
 	[ACT_REBOOT] = "POWER",
 };
@@ -63,7 +72,7 @@ static int item_y(int item)
 
 	for (int i = 0;; i++) {
 		if (group[i])
-			y += (i ? 30 : 0) + 32 + 14;	/* gap, group title, gap */
+			y += (i ? GROUP_GAP : 0) + GROUP_H;
 		if (i == item)
 			return y;
 		y += ROW_H;
@@ -127,6 +136,18 @@ static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 		label = "Fastbootd";
 		right = "userspace";
 		break;
+	case ACT_FACTORY:
+		label = "Factory mode";
+		right = "test menu";
+		break;
+	case ACT_PRELOADER:
+		label = "Preloader";
+		right = "PC tool first";
+		break;
+	case ACT_BROM:
+		label = "BootROM";
+		right = "waits 60 s";
+		break;
 	case ACT_WAIT:
 		label = "Key wait at boot";
 		right = wait_text(cfg->wait_ms, wbuf);
@@ -140,8 +161,8 @@ static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 	}
 	gfx_fill(x, y, COL_W, ROW_H, C_BG);
 	if (selected) {
-		gfx_round(x, y, COL_W, ROW_H, 14, C_ROW);
-		gfx_round(x + 16, y + 20, 6, ROW_H - 40, 3, C_ACCENT);
+		gfx_round(x, y, COL_W, ROW_H, 12, C_ROW);
+		gfx_round(x + 16, y + 18, 6, ROW_H - 36, 3, C_ACCENT);
 	}
 	/* 3x label and 2x note on one baseline (row 12 of the 16-row font) */
 	int ty = y + (ROW_H - 48) / 2;
@@ -175,19 +196,19 @@ static void draw(int sel, const struct t70_cfg *cfg)
 
 	dimmed = 0;
 	gfx_fill(0, 0, gfx_w(), gfx_h(), C_BG);
-	gfx_text(x, 112, 4, C_TEXT, "Boot options");
-	gfx_text(x, 200, 2, C_TEXT2, join(sub, "T70 Pro   \x07   slot ", here, "   \x07   unlocked"));
-	gfx_fill(x, 262, COL_W, 2, C_LINE);
+	gfx_text(x, TITLE_Y, 4, C_TEXT, "Boot options");
+	gfx_text(x, TITLE_Y + 82, 2, C_TEXT2, join(sub, "T70 Pro   \x07   slot ", here, "   \x07   unlocked"));
+	gfx_fill(x, TITLE_Y + 134, COL_W, 2, C_LINE);
 	for (int i = 0; i < ACT_COUNT; i++) {
 		if (group[i])
-			gfx_text(x + 16, item_y(i) - 46, 2, C_TEXT3, group[i]);
+			gfx_text(x + 16, item_y(i) - GROUP_H, 2, C_TEXT3, group[i]);
 		draw_item(i, i == sel, cfg);
 	}
 	/* the keys, centred at the bottom */
 	int w = PAIR_GAP;
 	for (int k = 0; k < 2; k++)
 		w += keycap_w(hint[k][0]) + KEY_GAP + gfx_text_w(2, hint[k][1]);
-	int kx = (gfx_w() - w) / 2, ky = gfx_h() - 136;
+	int kx = (gfx_w() - w) / 2, ky = gfx_h() - KEYS_Y;
 	for (int k = 0; k < 2; k++) {
 		kx += keycap(kx, ky, hint[k][0]) + KEY_GAP;
 		kx += gfx_text(kx, ky + 10, 2, C_TEXT2, hint[k][1]) + PAIR_GAP;
@@ -270,6 +291,18 @@ static int do_action(int act, struct t70_cfg *cfg)
 		}
 		lk_rgu_set_boot_mode(LK_RGU_RECOVERY);
 		lk_platform_halt(LK_HALT_REBOOT, LK_REASON_SW_RESET);
+	case ACT_FACTORY:
+		/* as with volume up held at power-on: the boot goes on in factory
+		 * mode (the stock lk reads the mode again for the kernel) */
+		lk_dprintf("t70: factory mode\n");
+		lk_boot_mode = LK_MODE_FACTORY;
+		return 1;
+	case ACT_PRELOADER:
+		notice("Restarting to the preloader", "It looks for a PC tool for a few seconds");
+		t70_reboot_preloader();
+	case ACT_BROM:
+		notice("Restarting to BootROM download", "It waits 60 s for a PC tool");
+		t70_reboot_brom(BROM_WAIT_S);
 	case ACT_FASTBOOT:
 		notice("Restarting to fastboot", "Please wait");
 		lk_rgu_set_boot_mode(LK_RGU_BOOTLOADER);

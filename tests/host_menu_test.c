@@ -32,6 +32,7 @@ volatile uint8_t lk_boot_mode;
 static int kpd_dead;
 static int kpd_sparse;	/* keypad bits without a key read 0, not 1 */
 volatile uint16_t t70_test_kpd_mem1 = 0xffff;
+volatile uint32_t t70_test_secao[0x44];
 
 static void press(uint64_t at_ms, uint64_t len_ms, unsigned keys)
 {
@@ -270,8 +271,8 @@ int main(void)
 
 	name = "fastboot (bootloader), going up past the top";
 	reset();
-	press(100, 100, UP); for (int i = 0; i < 5; i++) press(400 + i * 300, 100, UP);
-	press(2500, 100, PWR); run();
+	press(100, 100, UP); for (int i = 0; i < 8; i++) press(400 + i * 300, 100, UP);
+	press(3500, 100, PWR); run();
 	CHECK(halted && rgu_mode == LK_RGU_BOOTLOADER && halt_reason == LK_REASON_SW_RESET, "no fastboot reboot");
 
 	name = "fastbootd";
@@ -280,10 +281,29 @@ int main(void)
 	press(2500, 100, PWR); run();
 	CHECK(halted && rgu_mode == LK_RGU_RECOVERY && !strcmp((char *)misc, "boot-fastboot"), "no fastbootd");
 
+	name = "factory mode: the boot goes on in factory mode";
+	reset(); press(100, 100, DOWN); for (int i = 0; i < 5; i++) press(400 + i * 300, 100, DOWN);
+	press(2500, 100, PWR); run();
+	CHECK(!halted && lk_boot_mode == LK_MODE_FACTORY && fb_black() && now_us < 3000000, "not factory");
+	CHECK(strstr(screen, "Factory mode\ntest menu\n") != NULL, "label");
+
+	name = "preloader: a cold restart";
+	reset(); press(100, 100, DOWN); for (int i = 0; i < 6; i++) press(400 + i * 300, 100, DOWN);
+	press(2800, 100, PWR); run();
+	CHECK(halted && halt_action == LK_HALT_REBOOT && halt_reason == LK_REASON_COLD && rgu_mode == -1, "no cold restart");
+
+	name = "BootROM download: BOOT_MISC0 set, watchdog reset";
+	reset(); memset((void *)t70_test_secao, 0, sizeof(t70_test_secao));
+	press(100, 100, DOWN); for (int i = 0; i < 7; i++) press(400 + i * 300, 100, DOWN);
+	press(3100, 100, PWR); run();
+	CHECK(halted && halt_reason == LK_REASON_SW_RESET, "no watchdog reset");
+	CHECK(t70_test_secao[0x80 / 4] == (0x444c0000u | 60u << 2 | 1) && (t70_test_secao[0x108 / 4] & 1) &&
+	      t70_test_secao[0x100 / 4] == 0, "download request not set");
+
 	name = "wait setting 5 -> 3 s, saved in misc, used next boot";
 	reset(); memset(misc, 0, sizeof(misc));
-	press(100, 100, UP); for (int i = 0; i < 5; i++) press(400 + i * 300, 100, DOWN);
-	press(2500, 100, PWR); press(3000, 100, UP); for (int i = 0; i < 5; i++) press(3300 + i * 300, 100, DOWN);
+	press(100, 100, UP); for (int i = 0; i < 8; i++) press(400 + i * 300, 100, DOWN);
+	press(3500, 100, PWR); press(4000, 100, UP); for (int i = 0; i < 8; i++) press(4300 + i * 300, 100, DOWN);
 	run();
 	CHECK(!halted, "halted");
 	{

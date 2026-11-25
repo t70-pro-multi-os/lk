@@ -15,14 +15,24 @@ opens the menu (volume moves, power selects):
 ![Boot options menu](docs/menu.png)
 
 - Continue booting (this slot) / Switch to the other slot (restarts)
-- Recovery, Fastboot (bootloader), Fastbootd (userspace)
+- Recovery, Fastboot (bootloader), Fastbootd (userspace): this slot's
+- Factory mode: the boot goes on in factory mode, as with volume up held at
+  power-on
+- USB download (`src/download.c`):
+  - Preloader: a restart with no key held, so the preloader looks for a PC
+    tool (it skips that while power is held, as after a forced power-off)
+  - BootROM: the stock preloader's emergency download (volume up + down +
+    power at power-on) with a 60 s wait instead of 5 s: `BOOT_MISC0` in the
+    always-on security block, then a watchdog reset
 - Key wait at boot 5/3/1 s or off, saved in `misc` at 0x3000 (`struct t70_cfg`)
 - Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a
 volume key held while booting does. With the wait off the screen is left as
-it is and only a held volume key opens the menu. Download mode, SD card and
-EDK2 boot are not done yet. Checked by `make test` (menu logic and drawing on
+it is and only a held volume key opens the menu. A boot whose mode is
+already chosen (recovery, factory, META, fastboot, download) does not wait.
+SD card boot, `fastboot boot` (missing from the stock fastboot) and EDK2
+boot are not done yet. Checked by `make test` (menu logic and drawing on
 the host), `make relocheck` and `make check`.
 
 On the device (slot B, 2026-11-25) the first drawn menu showed nothing,

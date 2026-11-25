@@ -65,5 +65,9 @@ void t70_diag(unsigned stage);
 int t70_diag_keys(int y);	/* show the raw keys on a line at y; 1 if redrawn */
 #endif
 
+/* download.c: USB download modes for PC tools */
+void t70_reboot_brom(unsigned seconds) __attribute__((noreturn));
+void t70_reboot_preloader(void) __attribute__((noreturn));
+
 /* menu.c */
 void t70_menu(struct t70_cfg *cfg);
