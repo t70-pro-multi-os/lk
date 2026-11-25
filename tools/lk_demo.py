@@ -8,7 +8,7 @@ prints every shown screen. This script writes them as PNG files:
 
   countdown.png   the boot wait (any key opens the menu)
   menu.png        the menu
-  notice.png      the message after choosing "Switch to slot B"
+  notice.png      the message after "Boot slot" B and "Continue booting"
   menu-demo.png   all of it as an animation (APNG)
 
   lk_demo.py out/stock/00-lk.bin out/demo_screen out/demo

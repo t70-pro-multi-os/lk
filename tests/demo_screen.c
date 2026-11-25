@@ -114,10 +114,12 @@ int main(int argc, char **argv)
 	fclose(f);
 	fbcon.fb = calloc(1, fbcon.size);
 	press(1500, 150, T70_KEY_DOWN);		/* any key: open the menu */
-	press(2700, 150, T70_KEY_DOWN);		/* "Switch to slot B" */
+	press(2700, 150, T70_KEY_DOWN);		/* "Boot slot" */
 	press(3900, 150, T70_KEY_DOWN);		/* "Recovery" */
-	press(5100, 150, T70_KEY_UP);		/* back to "Switch to slot B" */
-	press(6300, 150, T70_KEY_POWER);	/* select */
+	press(5100, 150, T70_KEY_UP);		/* back to "Boot slot" */
+	press(6300, 150, T70_KEY_POWER);	/* slot B for the next boot */
+	press(7500, 150, T70_KEY_UP);		/* "Continue booting": slot B, restarts */
+	press(8700, 150, T70_KEY_POWER);	/* select */
 	sync_kpd();
 	if (!setjmp(halt_jump))
 		t70_orange_wait();

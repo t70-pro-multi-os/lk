@@ -14,7 +14,9 @@ opens the menu (volume moves, power selects):
 
 ![Boot options menu](docs/menu.png)
 
-- Continue booting (this slot) / Switch to the other slot (restarts)
+- Continue booting / Boot slot A or B: "Boot slot" only switches the active
+  slot flag in `misc`; Continue boots on, or restarts into the other slot
+  if that is the one chosen (also after 60 s without a key)
 - Recovery, Fastboot (bootloader), Fastbootd (userspace): this slot's
 - Factory mode: the boot goes on in factory mode, as with volume up held at
   power-on

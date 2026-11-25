@@ -13,7 +13,7 @@
 
 enum action {
 	ACT_CONTINUE,
-	ACT_OTHER_SLOT,
+	ACT_SLOT,
 	ACT_RECOVERY,
 	ACT_FASTBOOT,
 	ACT_FASTBOOTD,
@@ -28,6 +28,7 @@ enum action {
 
 static const uint32_t wait_choices[] = { 5000, 3000, 1000, 0 };
 static int dimmed = 0;	/* the menu behind a message box is darkened (in .data) */
+static char next_slot = 'A';	/* the slot "Boot slot" has made active (in .data) */
 
 /* Colours: greys and one green that stays green whichever order the panel
  * takes red and blue in (not confirmed on the device yet). */
@@ -111,19 +112,19 @@ static const char *wait_text(uint32_t ms, char *buf)
 static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 {
 	const char *here = slot_name(lk_get_slot_suffix());
-	const char *other = here[0] == 'A' ? "B" : "A";
-	char lbuf[48], rbuf[48], wbuf[8];
+	const char next[2] = { next_slot, 0 };
+	char rbuf[48], wbuf[8];
 	const char *label = "", *right = "";
 	int x = col_x(), y = item_y(i);
 
 	switch (i) {
 	case ACT_CONTINUE:
 		label = "Continue booting";
-		right = join(rbuf, "slot ", here, 0);
+		right = join(rbuf, "slot ", next, next_slot == here[0] ? "" : ", restarts");
 		break;
-	case ACT_OTHER_SLOT:
-		label = join(lbuf, "Switch to slot ", other, 0);
-		right = "restarts";
+	case ACT_SLOT:
+		label = "Boot slot";
+		right = join(rbuf, next, next_slot == here[0] ? "  (this boot)" : "  (next boot)", 0);
 		break;
 	case ACT_RECOVERY:
 		label = "Recovery";
@@ -263,23 +264,24 @@ static void wait_release(void)
 
 static int do_action(int act, struct t70_cfg *cfg)
 {
-	const char *here = lk_get_slot_suffix();
 	char t[48];
 
 	switch (act) {
 	case ACT_CONTINUE:
 		return 1;
-	case ACT_OTHER_SLOT: {
-		const char *target = (here && here[1] == 'b') ? "_a" : "_b";
+	case ACT_SLOT: {
+		/* only the active slot flag in misc; "Continue booting" restarts
+		 * into it if it is not the slot running now */
+		const char *target = next_slot == 'A' ? "_b" : "_a";
 
-		notice(join(t, "Switching to slot ", slot_name(target), 0), "Setting the active slot");
 		if (lk_set_active_slot(target)) {
-			notice(join(t, "Could not switch to slot ", slot_name(target), 0), "Back to the menu");
+			notice(join(t, "Could not make slot ", slot_name(target), " active"), "Back to the menu");
 			pause_ms(2500);
 			return 0;
 		}
-		notice(join(t, "Slot ", slot_name(target), " is active"), "Restarting...");
-		lk_platform_halt(LK_HALT_REBOOT, LK_REASON_COLD);
+		next_slot = slot_name(target)[0];
+		lk_dprintf("t70: slot %c active\n", next_slot);
+		return 0;
 	}
 	case ACT_RECOVERY:
 	case ACT_FASTBOOTD:
@@ -336,6 +338,7 @@ void t70_menu(struct t70_cfg *cfg)
 	uint64_t idle;
 
 	lk_dprintf("t70: boot menu\n");
+	next_slot = slot_name(lk_get_slot_suffix())[0];
 	draw(sel, cfg);
 	wait_release();
 	prev = last_raw = 0;
@@ -375,6 +378,12 @@ void t70_menu(struct t70_cfg *cfg)
 			gfx_flush();
 #endif
 		t70_poll_delay();
+	}
+	if (next_slot != slot_name(lk_get_slot_suffix())[0]) {
+		char t[48];
+
+		notice(join(t, "Restarting to slot ", (char[2]){ next_slot, 0 }, 0), "Please wait");
+		lk_platform_halt(LK_HALT_REBOOT, LK_REASON_COLD);
 	}
 	gfx_clear();	/* the boot logo again, as after the stock warning */
 	gfx_flush();

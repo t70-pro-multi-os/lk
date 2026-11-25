@@ -245,21 +245,37 @@ int main(void)
 	CHECK(strstr(screen, "Continue booting\nslot A\n") != NULL, "slot A not shown");
 	CHECK(fb_black(), "screen not black after the menu");
 
-	name = "switch to slot B";
+	name = "Boot slot only sets the flag; Continue then restarts into slot B";
 	reset(); memset(misc, 0, sizeof(misc)); strcpy(slot, "_a");
-	press(500, 100, UP); press(1000, 100, DOWN); press(1500, 100, PWR); run();
-	CHECK(halted && halt_action == LK_HALT_REBOOT && halt_reason == LK_REASON_COLD, "no cold reboot");
+	press(500, 100, UP); press(1000, 100, DOWN); press(1500, 100, PWR); press(2000, 100, UP);
+	press(2500, 100, PWR); run();
+	CHECK(halted && halt_action == LK_HALT_REBOOT && halt_reason == LK_REASON_COLD && now_us > 2500000,
+	      "no cold reboot after Continue");
 	CHECK(misc[0x800] == '_' && misc[0x801] == 'b', "slot b not set");
+	CHECK(strstr(screen, "Boot slot\nB  (next boot)\n") && strstr(screen, "Continue booting\nslot B, restarts\n") &&
+	      strstr(screen, "Restarting to slot B"), "labels");
+
+	name = "Boot slot twice: back to this slot, Continue boots on";
+	reset(); memset(misc, 0, sizeof(misc));
+	press(500, 100, UP); press(1000, 100, DOWN); press(1500, 100, PWR); press(2000, 100, PWR);
+	press(2500, 100, UP); press(3000, 100, PWR); run();
+	CHECK(!halted && misc[0x801] == 'a', "did not boot on in slot A");
+
+	name = "Boot slot, then no key for 60 s: restart into slot B";
+	reset(); memset(misc, 0, sizeof(misc));
+	press(500, 100, UP); press(1000, 100, DOWN); press(1500, 100, PWR); run();
+	CHECK(halted && halt_reason == LK_REASON_COLD && misc[0x801] == 'b' && now_us > 60000000, "no restart");
 	/* the menu and the message are opaque (alpha 0xff), also where dimmed */
 	CHECK(((uint32_t *)fbcon.fb)[0] >> 24 == 0xff && ((uint32_t *)fbcon.fb)[2240 * 700 + 1120] >> 24 == 0xff,
 	      "menu or message not opaque");
 
-	name = "from slot B, switch to slot A";
+	name = "from slot B, to slot A";
 	reset(); strcpy(slot, "_b");
-	press(500, 100, PWR); press(1000, 100, DOWN); press(1500, 100, PWR); run();
+	press(500, 100, PWR); press(1000, 100, DOWN); press(1500, 100, PWR); press(2000, 100, UP);
+	press(2500, 100, PWR); run();
 	CHECK(halted && misc[0x801] == 'a', "slot a not set");
-	CHECK(strstr(screen, "Continue booting\nslot B\n") && strstr(screen, "Switch to slot A"), "labels");
-	CHECK(strstr(screen, "Slot A is active") != NULL, "no message before the restart");
+	CHECK(strstr(screen, "Continue booting\nslot B\n") && strstr(screen, "Boot slot\nB  (this boot)\n"), "labels");
+	CHECK(strstr(screen, "Restarting to slot A") != NULL, "no message before the restart");
 	strcpy(slot, "_a");
 
 	name = "recovery";
