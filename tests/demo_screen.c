@@ -84,6 +84,7 @@ void lk_fb_cmd_continue(const char *a, void *d, unsigned s) { (void)a; (void)d; 
 void lk_boot_images_check(void *b, void *v, void *i) { (void)b; (void)v; (void)i; }
 void lk_boot_images_set(void *b, void *v, void *i) { (void)b; (void)v; (void)i; }
 int lk_mblock_free(unsigned long pa) { (void)pa; return 0; }
+int lk_boot_header_copy(void *i, const char *p) { (void)i; (void)p; return 0; }
 int lk_vmm_free_region(void *a, void *v) { (void)a; (void)v; return 0; }
 
 

@@ -34,6 +34,7 @@ void lk_fastboot_fail(const char *reason);
 void lk_fastboot_okay(const char *info);
 void lk_fb_cmd_continue(const char *arg, void *data, unsigned size);
 void lk_boot_images_check(void *boot, void *vendor_boot, void *init_boot);
+int lk_boot_header_copy(void *image, const char *partition);
 void lk_boot_images_set(void *boot, void *vendor_boot, void *init_boot);
 int lk_mblock_free(unsigned long pa);
 int lk_vmm_free_region(void *aspace, void *va);

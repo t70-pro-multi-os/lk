@@ -17,10 +17,13 @@
 05430c lk_disp_update        # void (int x, int y, int w, int h): clean the frame buffer cache and show it
                              #   (the area is ignored: the whole buffer is shown)
 007750 lk_fastboot_register  # void (const char *prefix, void (*handle)(const char *arg, void *data,
-                             #   unsigned size), int, int): the last two are the stock access settings
+                             #   unsigned size), int allowed_secure, int lock_check): with secure boot
+                             #   on, a command with allowed_secure 0 gets "No support by security control"
 007acc lk_fastboot_fail      # void (const char *reason): reply FAIL
 007b04 lk_fastboot_okay      # void (const char *info): reply OKAY
 008d58 lk_fb_cmd_continue    # the handler of "continue": OKAY, leave fastboot, boot
+00c3a0 lk_boot_header_copy   # int (void *image, const char *partition): copies the header of a loaded
+                             #   boot, init_boot or vendor_boot image; the boot code reads sizes from it
 00d2d8 lk_boot_images_check  # (boot, vendor_boot, init_boot): checks the loaded image headers
 014fa4 lk_mblock_free        # int (u64 pa): gives a reserved block back (the fastboot buffer, f_008228)
 06b140 lk_vmm_free_region    # int (void *aspace, void *va): unmaps it

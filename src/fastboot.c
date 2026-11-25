@@ -14,9 +14,11 @@
  * image, keeps its address and does what "continue" does (OKAY, leave
  * fastboot, boot). The normal boot then loads and verifies this slot's
  * partitions as always (an unlocked device boots on with a verification
- * error), and where it hands the boot, vendor_boot and init_boot images to
- * the boot code (two hooks in f_05b534) the downloaded image takes the place
- * of the boot partition. vendor_boot and init_boot stay this slot's.
+ * error). Where f_05b534 hands the loaded images on, three hooks put the
+ * downloaded image in place of the boot partition: the header copy the boot
+ * code takes its sizes and offsets from (f_00c3a0, taken for each loaded
+ * partition), the header check (f_00d2d8) and the image addresses
+ * (f_00d268). vendor_boot and init_boot stay this slot's.
  * The stock fastboot frees its 128 MiB download buffer when it leaves (two
  * more hooks in f_008228); after "fastboot boot" it is kept, as the image
  * is in it.
@@ -83,12 +85,16 @@ static void cmd_boot(const char *arg, void *data, unsigned sz)
 	lk_fb_cmd_continue(arg, data, sz);	/* OKAY, leave fastboot, boot */
 }
 
-/* Hook at the registration of "continue": register it, then "boot" with
- * the same access settings. */
+/* Hook at the registration of "continue": register it, then "boot".
+ * The third argument is "allowed under the security control" (the stock
+ * registers getvar, flash and reboot with 1; "continue" has 0 and is
+ * refused with "No support by security control" on this tablet), the fourth
+ * "needs an unlocked device" (0: the stock lock check stays out of it; an
+ * unlocked bootloader is what lets the boot go on past verification). */
 void t70_fastboot_register_continue(const char *name, void *handler, int a, int b)
 {
 	lk_fastboot_register(name, handler, a, b);
-	lk_fastboot_register("boot", (void *)cmd_boot, a, b);
+	lk_fastboot_register("boot", (void *)cmd_boot, 1, 0);
 }
 
 /* Hooks where the stock fastboot gives its download buffer back. */
@@ -106,7 +112,21 @@ int t70_fastboot_buffer_unmap(void *aspace, void *va)
 	return ram_boot ? 0 : lk_vmm_free_region(aspace, va);
 }
 
+static int is_boot(const char *name)
+{
+	return name && name[0] == 'b' && name[1] == 'o' && name[2] == 'o' && name[3] == 't' && !name[4];
+}
+
 /* Hooks in f_05b534 where the verified images are handed on. */
+int t70_boot_header_copy(void *data, const char *name)
+{
+	if (ram_boot && is_boot(name)) {
+		lk_dprintf("t70: boot header from the fastboot boot image\n");
+		data = (void *)ram_boot;
+	}
+	return lk_boot_header_copy(data, name);
+}
+
 void t70_boot_images_check(void *boot, void *vendor_boot, void *init_boot)
 {
 	lk_boot_images_check(ram_boot ? (void *)ram_boot : boot, vendor_boot, init_boot);

@@ -31,6 +31,7 @@
 # fastboot boot (src/fastboot.c): register "boot" next to "continue", and hand
 # the downloaded image to the boot code in place of the boot partition.
 008358 1: bl t70_fastboot_register_continue
+05b5ec 1: bl t70_boot_header_copy
 05b64c 1: bl t70_boot_images_check
 05b698 1: bl t70_boot_images_set
 0087d8 1: bl t70_fastboot_buffer_free

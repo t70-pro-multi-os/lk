@@ -78,6 +78,8 @@ void lk_fb_cmd_continue(const char *a, void *d, unsigned s) { (void)a; (void)d; 
 void lk_boot_images_check(void *b, void *v, void *i) { (void)v; (void)i; boot_set = b; }
 void lk_boot_images_set(void *b, void *v, void *i) { (void)v; (void)i; boot_set = b; }
 static int buffer_freed;
+static void *header_from;
+int lk_boot_header_copy(void *i, const char *p) { (void)p; header_from = i; return 0; }
 int lk_mblock_free(unsigned long pa) { (void)pa; buffer_freed++; return 0; }
 int lk_vmm_free_region(void *a, void *v) { (void)a; (void)v; buffer_freed++; return 0; }
 void lk_delay_us(uint32_t us)
@@ -464,6 +466,12 @@ int main(void)
 		CHECK(boot_set == img, "downloaded image not checked");
 		t70_boot_images_set(&part, 0, 0);
 		CHECK(boot_set == img, "downloaded image not used");
+		t70_boot_header_copy(&part, "boot");
+		CHECK(header_from == img, "boot header not taken from the downloaded image");
+		t70_boot_header_copy(&part, "vendor_boot");
+		CHECK(header_from == &part, "vendor_boot header replaced");
+		t70_boot_header_copy(&part, "init_boot");
+		CHECK(header_from == &part, "init_boot header replaced");
 		buffer_freed = 0; t70_fastboot_buffer_free(0); t70_fastboot_buffer_unmap(0, 0);
 		CHECK(buffer_freed == 0, "buffer freed under the boot image");
 	}
