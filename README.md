@@ -7,9 +7,19 @@ Goal: boot normally by default; press any key during the stock orange-state
 warning to get a menu (slot A/B, recovery, fastboot, download mode, SD card,
 EDK2/UEFI, power off), with the default kept in `misc`.
 
-**Status:** build pipeline and the first hook (the 5 s warning wait now calls
-`t70_orange_wait()`, which still just waits 5 s). Statically checked; not yet
-booted on the device.
+**Status:** first menu. The 5 s warning wait (hook in `hooks.txt`) shows
+"Press any key for the boot menu" with a countdown; any key opens the menu
+(volume moves, power selects):
+
+- Continue (boot this slot) / Switch to the other slot and reboot
+- Recovery, Fastboot (bootloader), Fastbootd
+- Menu key wait 5/3/1/0 s, saved in `misc` at 0x3000 (`struct t70_cfg`)
+- Reboot, Power off
+
+Power still held from switching the tablet on does not open the menu; a
+volume key held while booting does. Download mode, SD card and EDK2 boot are
+not done yet. Checked by `make test` (menu logic on the host),
+`make relocheck` and `make check`; not yet booted on the device.
 
 ## How it works
 
@@ -36,6 +46,7 @@ branch, literal, adrp pair, pointer and jump-table entry must still reach its
     make STOCK_LK_IMG=/path/to/stock/lk.img -j        # -> out/lk.img
     make check STOCK_LK_IMG=/path/to/stock/lk.img     # generated source == stock lk
     make relocheck STOCK_LK_IMG=/path/to/stock/lk.img
+    make test                                         # menu logic, host compiler
 
 Stock `lk.img`: sha256 `18f56d90f25692f8547840b644f405aae7769a97e780acbdf7f076b737c20846`,
 `lk` payload sha256 `05e0155f32c46109cad92b46e65d4943852b91c84d19c99d2e52d49443cf33b4`.

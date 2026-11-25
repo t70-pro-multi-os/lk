@@ -14,7 +14,8 @@ STOCK_LAYOUT ?= 1
 ASFLAGS := -march=armv8.5-a+crypto+sha3+sm4 -I $(SRC)/include --defsym LK_STOCK_LAYOUT=$(STOCK_LAYOUT)
 CFLAGS := -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-pic -fno-pie -mgeneral-regs-only \
 	-mstrict-align -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common \
-	-ffunction-sections -fdata-sections -Wall -Wextra -Werror -Isrc
+	-ffunction-sections -fdata-sections -fno-tree-loop-distribute-patterns -fno-zero-initialized-in-bss \
+	-Wall -Wextra -Werror -Wstack-usage=1024 -Isrc
 
 GEN_SRCS := $(sort $(wildcard $(SRC)/text/*.S)) $(SRC)/rodata.S $(SRC)/data.S $(SRC)/bss.S
 GEN_OBJS := $(patsubst $(SRC)/%.S,$(OUT)/obj/gen/%.o,$(GEN_SRCS))
@@ -34,7 +35,13 @@ $(OUT)/obj/x/%.S.o: %.S
 	@mkdir -p $(dir $@)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
+# The stock start code clears only the stock bss, so our objects must not have
+# any: zero-initialised variables go to .data (-fno-zero-initialized-in-bss).
 $(OUT)/lk.elf: $(GEN_OBJS) $(X_OBJS) $(SRC)/lk.ld
+	@for o in $(X_OBJS); do \
+		if $(CROSS)size -A $$o | awk '$$1 ~ /^(\.bss|COMMON)/ && $$2 > 0 { f = 1 } END { exit !f }'; then \
+			echo "$$o has .bss (give the variable an initialiser)"; exit 1; fi; \
+	done
 	@$(LD) -nostdlib -static --no-dynamic-linker --build-id=none -z noexecstack -z norelro \
 		--no-warn-rwx-segments -T $(SRC)/lk.ld -Map $(OUT)/lk.map -o $@ $(GEN_OBJS) $(X_OBJS)
 

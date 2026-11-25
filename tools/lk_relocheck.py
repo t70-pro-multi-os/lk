@@ -39,7 +39,7 @@ def read_list(path, kind):
         if not line:
             continue
         if kind == "names":
-            off, name = line.split()
+            off, name = line.split()[:2]
             out[int(off, 16)] = name
         else:
             head, body = line.split(":", 1)
@@ -63,8 +63,8 @@ def check(data, lk, elf, pads=None):
 
     deltas = {}
     for t, name in lk.names.items():
-        if name.startswith((".L", "f_", "L_")) or name not in sym:
-            continue
+        if name.startswith((".L", "f_", "L_")) or name not in sym or t == L.BSS_END:
+            continue                  # the end of the stock bss is placed after any added bss
         sec = "bss" if t >= L.FILE_END else L.section_of(t)
         if sec != "text":
             deltas.setdefault(sec, set()).add(sym[name] - t)
@@ -80,7 +80,7 @@ def check(data, lk, elf, pads=None):
             shift = sum((len(ins) - n) * 4 for h, (n, ins) in hooks.items()
                         if c <= h and h + 4 * n <= t and starts[bisect.bisect_right(starts, h) - 1] == c)
             return sym[f"f_{c:06x}"] + (t - c) + shift
-        if t == lk.text_end:
+        if t == lk.text_end or t == L.BSS_END:
             return sym[lk.names[t]]
         return t + delta["bss" if t >= L.FILE_END else L.section_of(t)]
 

@@ -682,6 +682,9 @@ SECTIONS
     .rodata : {{ KEEP(*(.rodata.lk)) *(.rodata .rodata.*) }}
     . = ALIGN(0x1000);
     .data : {{ KEEP(*(.data.lk)) *(.data .data.*) }}
+    /* Keep the stock bss at its page offset ({FILE_END & 0xfff:#x}) after added data, so
+       adrp pairs that share a page and the alignment of bss objects still hold. */
+    . = . + (({FILE_END & 0xfff:#x} - .) & 0xfff);
     .bss (NOLOAD) : {{ KEEP(*(.bss.lk)) *(.bss .bss.* COMMON) }}
     /* End of the stock bss: the stock heap starts here, after any added bss. */
     . = ALIGN(0x1000);
@@ -740,7 +743,7 @@ def main(argv):
                 if not line:
                     continue
                 if opt == "--names":
-                    off, name = line.split()
+                    off, name = line.split()[:2]
                     names[int(off, 16)] = name
                 else:
                     head, body = line.split(":", 1)

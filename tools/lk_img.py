@@ -46,16 +46,20 @@ def parts(data):
         raise ValueError(f"non-zero bytes after the last part at {off:#x}")
 
 
+PARTITION = 4 * 1024 * 1024    # lk_a / lk_b on the T70 Pro
+
+
 def build(items, total=None):
+    """Chain the parts; pad to total if the result is smaller (the stock size)."""
     out = bytearray()
     for item in items:
         header = bytearray(item["header"])
         struct.pack_into("<I", header, 4, len(item["payload"]))
         out += header + item["payload"]
         out += b"\0" * (-len(out) % 16)
-    if total is not None:
-        if len(out) > total:
-            raise ValueError(f"image grew from {total:#x} to {len(out):#x}")
+    if len(out) > PARTITION:
+        raise ValueError(f"image of {len(out):#x} bytes does not fit the {PARTITION:#x}-byte lk partition")
+    if total is not None and len(out) < total:
         out += b"\0" * (total - len(out))
     return bytes(out)
 

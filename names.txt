@@ -10,3 +10,17 @@
 043b70 lk_display_update     # void (void): push the frame buffer to the panel
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)
 05b948 lk_orange_warning     # the unlocked (orange state) warning screen
+01a810 lk_get_slot_suffix    # const char *(void): "_a" or "_b", the slot this lk booted
+01ac70 lk_set_active_slot    # int (const char *suffix): "_a"/"_b" -> misc boot_ctrl; 0 on success
+01cc24 lk_platform_halt      # void (int action, int reason): action 1 reboot, 2 power off;
+                             #   reason 1 PMIC cold reset, 7 watchdog reset (keeps the RGU boot mode)
+043a74 lk_rgu_set_boot_mode  # void (u8 mode): TOPRGU +0x24 bits 0-3 for the next boot:
+                             #   2 recovery (with a misc message), 3 bootloader (fastboot)
+06b310 lk_bio_open           # void *(const char *name): block device by partition name
+06b39c lk_bio_read           # long (void *dev, void *buf, long offset, unsigned long len)
+06b40c lk_bio_write          # long (void *dev, const void *buf, long offset, unsigned long len)
+06b2a0 lk_bio_close          # void (void *dev)
+06c68c lk_malloc             # void *(unsigned long size)
+06c7c8 lk_free               # void (void *ptr)
+06dcec memset                # void *(void *s, int c, unsigned long n)
+06f520 lk_dprintf            # int (const char *fmt, ...): LK log, not the screen

@@ -36,7 +36,15 @@ relocheck: $(OUT)/lk.bin
 	$(PYTHON) tools/lk_relocheck.py $(OUT)/stock/00-lk.bin $(OUT)/gen $(OUT)/build/lk.elf \
 		--names names.txt --hooks hooks.txt
 
+# Menu logic on the build host, with the stock lk functions simulated.
+HOSTCC ?= cc
+test:
+	@mkdir -p $(OUT)
+	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -DT70_HOST_TEST -Isrc \
+		-o $(OUT)/host_menu_test tests/host_menu_test.c src/orange_wait.c src/menu.c src/config.c src/keys.c
+	$(OUT)/host_menu_test
+
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all check relocheck clean
+.PHONY: all check relocheck test clean
