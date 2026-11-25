@@ -4,10 +4,12 @@
 
 /*
  * Volume keys: keypad memory register 1 (KPD 0x10010000 + 0x04, mapped by the
- * stock lk at this virtual address), active low. Bit 0 is volume up and bit 1
- * volume down, as in the T70 EDK2 keypad driver. The other bits have no keys
- * and read 1; if they do not, the register is not trusted (an unclocked block
- * reading 0 would look like both volume keys held).
+ * stock lk at this virtual address), active low. Bit 0 is volume up (keypad
+ * code 0) and bit 1 volume down (code 1), as the lk device tree overlay maps
+ * them (hw-init-map 115, 114) and the stock lk_detect_key(1) and (0) read
+ * them. Only these two bits count, as in the stock lk: the other bits have no
+ * key and need not read 1. Both low at once is taken as an unclocked block
+ * reading 0, not as two keys.
  * Power is the PMIC key read through the stock lk_detect_key(); the PMIC
  * second key counts as "other".
  */
@@ -25,7 +27,7 @@ unsigned t70_keys(void)
 	unsigned keys = 0;
 	uint16_t mem1 = *KPD_MEM1;
 
-	if ((mem1 | 3) == 0xffff) {
+	if (mem1 & 3) {
 		if (!(mem1 & 1))
 			keys |= T70_KEY_UP;
 		if (!(mem1 & 2))
@@ -37,6 +39,11 @@ unsigned t70_keys(void)
 		keys |= T70_KEY_OTHER;
 	ignored &= keys;		/* a released key counts again */
 	return keys & ~ignored;
+}
+
+uint16_t t70_kpd_mem1(void)
+{
+	return *KPD_MEM1;
 }
 
 /* One key poll interval. The stock lk runs the hardware watchdog with a 30 s

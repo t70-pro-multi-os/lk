@@ -218,17 +218,23 @@ static void pause_ms(unsigned ms)
 		t70_poll_delay();
 }
 
-/* Wait until the keys are released; a key stuck for 3 s is ignored from then on. */
+/* Wait until no key has been held for 100 ms, so a key bouncing as it is let
+ * go is not a new press; a key stuck for 3 s is ignored from then on. */
 static void wait_release(void)
 {
 	uint64_t start = lk_time_us();
-	unsigned keys;
+	unsigned keys, quiet = 0;
 
-	while ((keys = t70_keys())) {
-		if (lk_time_us() - start > 3000000) {
-			lk_dprintf("t70: keys %x stuck, ignored\n", keys);
-			t70_keys_ignore_held(keys);
-			break;
+	while (quiet < 5) {
+		keys = t70_keys();
+		if (!keys) {
+			quiet++;
+		} else {
+			quiet = 0;
+			if (lk_time_us() - start > 3000000) {
+				lk_dprintf("t70: keys %x stuck, ignored\n", keys);
+				t70_keys_ignore_held(keys);
+			}
 		}
 		t70_poll_delay();
 	}
@@ -293,19 +299,22 @@ static int do_action(int act, struct t70_cfg *cfg)
 void t70_menu(struct t70_cfg *cfg)
 {
 	int sel = ACT_CONTINUE;
-	unsigned prev;
+	unsigned prev, last_raw;
 	uint64_t idle;
 
 	lk_dprintf("t70: boot menu\n");
 	draw(sel, cfg);
 	wait_release();
-	prev = 0;
+	prev = last_raw = 0;
 	idle = lk_time_us();
 	for (;;) {
-		unsigned keys = t70_keys();
+		unsigned raw = t70_keys();
+		/* a change counts once it reads the same on two polls in a row */
+		unsigned keys = raw == last_raw ? raw : prev;
 		unsigned pressed = keys & ~prev;
 		int old = sel;
 
+		last_raw = raw;
 		prev = keys;
 		if (pressed)
 			idle = lk_time_us();
@@ -320,7 +329,7 @@ void t70_menu(struct t70_cfg *cfg)
 			if (do_action(sel, cfg))
 				break;
 			wait_release();
-			prev = 0;
+			prev = last_raw = 0;
 			draw(sel, cfg);
 		}
 		if (sel != old) {
@@ -328,6 +337,10 @@ void t70_menu(struct t70_cfg *cfg)
 			draw_item(sel, 1, cfg);
 			gfx_flush();
 		}
+#ifdef T70_DIAG
+		if (t70_diag_keys(gfx_h() - 60))
+			gfx_flush();
+#endif
 		t70_poll_delay();
 	}
 	gfx_clear();	/* the boot logo again, as after the stock warning */

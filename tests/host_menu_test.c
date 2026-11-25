@@ -30,6 +30,7 @@ static char screen[65536];	/* every text drawn, one per line */
 volatile uint8_t lk_boot_mode;
 
 static int kpd_dead;
+static int kpd_sparse;	/* keypad bits without a key read 0, not 1 */
 volatile uint16_t t70_test_kpd_mem1 = 0xffff;
 
 static void press(uint64_t at_ms, uint64_t len_ms, unsigned keys)
@@ -50,7 +51,8 @@ static unsigned held(void)
 static void sync_kpd(void)
 {
 	unsigned k = held();
-	t70_test_kpd_mem1 = kpd_dead ? 0 : (uint16_t)(0xffff & ~((k & T70_KEY_UP) ? 1 : 0) & ~((k & T70_KEY_DOWN) ? 2 : 0));
+	uint16_t idle = kpd_sparse ? 0x0003 : 0xffff;
+	t70_test_kpd_mem1 = kpd_dead ? 0 : (uint16_t)(idle & ~((k & T70_KEY_UP) ? 1 : 0) & ~((k & T70_KEY_DOWN) ? 2 : 0));
 }
 
 uint64_t lk_time_us(void) { return now_us; }
@@ -158,6 +160,7 @@ static void reset(void)
 	memset(&t70_diag_rec, 0, sizeof(t70_diag_rec));	/* a new boot */
 #endif
 	kpd_dead = 0;
+	kpd_sparse = 0;
 	sync_kpd();
 }
 
@@ -191,13 +194,15 @@ int main(void)
 	name = "diag: no key";
 	reset(); memset(misc, 0, sizeof(misc)); run();
 	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
-	CHECK(!halted && now_us >= 7000000 && now_us < 7200000, "not 2 s + 5 s");
+	CHECK(!halted && now_us >= 17000000 && now_us < 17200000, "not 2 s + 15 s");
 	CHECK(strstr(console, "t70 diag: fbcon ") && strstr(console, "2240x1400, 4 bytes per pixel; wait 5000 ms"),
 	      "console lines");
 	CHECK(d.magic == T70_DIAG_MAGIC && d.seq == 1 && d.size_of == sizeof(d) && d.stage == 6, "record");
 	CHECK(d.gfx == 0 && d.width == 2240 && d.height == 1400 && d.bytes_pp == 4 && d.disp_ready == 1, "frame buffer");
 	CHECK(d.px[0] == 0 && d.px[1] == 0xffb4b4b4 && d.px[3] == 0xffb4b4b4 && d.flushes > 40, "pixels / flushes");
-	CHECK(d.t_entry < 100000 && d.t_last >= 7000000 && d.misc_write == 0, "times");
+	CHECK(d.t_entry < 100000 && d.t_last >= 17000000 && d.misc_write == 0, "times");
+	CHECK(d.kpd_samples > 500 && d.kpd_and == 0xffff && d.kpd_or == 0xffff && d.det_or == 0, "key record");
+	CHECK(strstr(screen, "keypad ffff   vol-down 0  vol-up 0  power 0  home 0") != NULL, "key line");
 	CHECK(misc[0] == 0 && misc[0x800] == 0 && misc[T70_CFG_OFFSET] == 0, "touched other misc data");
 
 	name = "diag: the next boot counts on";
@@ -209,6 +214,8 @@ int main(void)
 	reset(); press(3000, 100, DOWN); press(4000, 100, PWR); run();
 	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
 	CHECK(!halted && strstr(screen, "Boot options") && d.stage == 7, "menu not recorded");
+	CHECK(d.kpd_and == 0xfffd && (d.det_or & 4), "volume down / power not recorded");
+	CHECK(strstr(screen, "keypad fffd") != NULL, "key line does not follow the keypad");
 
 	name = "diag: no frame buffer";
 	lk_fbcon = NULL;
@@ -319,6 +326,15 @@ int main(void)
 	name = "keypad reading 0 (not clocked) is ignored";
 	reset(); kpd_dead = 1; run();
 	CHECK(!halted && !strstr(screen, "Boot options") && now_us >= 5000000, "menu opened");
+
+	name = "volume keys with the other keypad bits reading 0";
+	reset(); kpd_sparse = 1;
+	press(1000, 100, UP); press(1500, 100, DOWN); press(1800, 100, UP); press(2200, 100, PWR); run();
+	CHECK(!halted && strstr(screen, "Boot options") && now_us < 3000000, "volume ignored");
+
+	name = "power bouncing as it is let go does not select";
+	reset(); press(1000, 100, PWR); press(1130, 20, PWR); run();
+	CHECK(!halted && strstr(screen, "Boot options") && now_us > 60000000, "bounce selected Continue");
 
 	name = "a stuck key is ignored after 3 s";
 	reset(); press(100, 1000000, DOWN); press(5000, 100, PWR); run();

@@ -7,6 +7,7 @@
  *
  * (tools/lk_diag.py prints it). The normal build has none of this.
  */
+#include "gfx.h"
 #include "lk_stock.h"
 #include "t70.h"
 
@@ -58,5 +59,54 @@ void t70_diag(unsigned stage)
 	copy(block, d, sizeof(*d));
 	d->misc_write = (uint32_t)t70_misc_rw(T70_DIAG_OFFSET, block, 512, 1);
 	lk_free(block);
+}
+
+static char *put(char *p, const char *s)
+{
+	while (*s)
+		*p++ = *s++;
+	return p;
+}
+
+static char *hex4(char *p, unsigned v)
+{
+	for (int i = 12; i >= 0; i -= 4)
+		*p++ = "0123456789abcdef"[(v >> i) & 15];
+	return p;
+}
+
+/* The raw key inputs on one line: the keypad register and the stock
+ * lk_detect_key() 0-3 (volume down, volume up, power, PMIC home). */
+int t70_diag_keys(int y)
+{
+	static uint32_t shown = 0xffffffffu;	/* in .data */
+	struct t70_diag *d = &t70_diag_rec;
+	unsigned mem1 = t70_kpd_mem1(), det = 0;
+	char line[80], *p = line;
+
+	for (int i = 0; i < 4; i++)
+		if (lk_detect_key(i) & 1)
+			det |= 1u << i;
+	d->kpd_and = d->kpd_samples ? d->kpd_and & mem1 : mem1;
+	d->kpd_or |= mem1;
+	d->kpd_samples++;
+	d->det_or |= det;
+	if ((mem1 | det << 16) == shown)
+		return 0;
+	shown = mem1 | det << 16;
+	p = put(p, "keypad ");
+	p = hex4(p, mem1);
+	p = put(p, "   vol-down ");
+	*p++ = (char)('0' + (det & 1));
+	p = put(p, "  vol-up ");
+	*p++ = (char)('0' + (det >> 1 & 1));
+	p = put(p, "  power ");
+	*p++ = (char)('0' + (det >> 2 & 1));
+	p = put(p, "  home ");
+	*p++ = (char)('0' + (det >> 3 & 1));
+	*p = 0;
+	gfx_fill(0, y - 8, gfx_w(), 48, 0x000000);
+	gfx_text(40, y, 2, 0xc2c2c2, line);
+	return 1;
 }
 #endif

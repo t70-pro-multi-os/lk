@@ -92,6 +92,8 @@ void t70_orange_wait(void)
 	t70_keys_ignore_held(t70_keys() & T70_KEY_POWER);
 #ifdef T70_DIAG
 	diag_console(&cfg, t70_keys());
+	if (limit < 15000000)	/* time to try every key */
+		limit = 15000000;
 #endif
 	start = lk_time_us();
 	no_fb = gfx_init();
@@ -117,6 +119,10 @@ void t70_orange_wait(void)
 	diag_pixels();
 #endif
 	for (;;) {
+#ifdef T70_DIAG
+		if (t70_diag_keys(gfx_h() - 60))
+			gfx_flush();
+#endif
 		if (t70_keys()) {
 			DIAG(D_MENU);
 			t70_menu(&cfg);

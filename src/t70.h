@@ -8,6 +8,7 @@ enum t70_key { T70_KEY_UP = 1, T70_KEY_DOWN = 2, T70_KEY_POWER = 4, T70_KEY_OTHE
 unsigned t70_keys(void);
 void t70_poll_delay(void);
 void t70_keys_ignore_held(unsigned keys);
+uint16_t t70_kpd_mem1(void);	/* the raw keypad register, for the diagnostic build */
 
 /* config.c: our settings in misc (vendor bootloader space). */
 #define T70_CFG_OFFSET	0x3000	/* misc 2-16 KiB is for the bootloader; 0-0x900 is in use */
@@ -52,11 +53,16 @@ struct t70_diag {
 	uint32_t flushes;	/* gfx_flush() calls */
 	uint32_t misc_write;	/* result of the previous record's write (0 ok) */
 	uint32_t px[4];		/* read back after drawing the countdown, see orange_wait.c */
+	uint32_t kpd_samples;	/* raw keypad register reads (t70_diag_keys) */
+	uint32_t kpd_and;	/* all reads ANDed: bits ever 0 (pressed) are 0 */
+	uint32_t kpd_or;	/* all reads ORed */
+	uint32_t det_or;	/* bit n: stock lk_detect_key(n) seen pressed, n = 0..3 */
 };
 
 #ifdef T70_DIAG
 extern struct t70_diag t70_diag_rec;
 void t70_diag(unsigned stage);
+int t70_diag_keys(int y);	/* show the raw keys on a line at y; 1 if redrawn */
 #endif
 
 /* menu.c */
