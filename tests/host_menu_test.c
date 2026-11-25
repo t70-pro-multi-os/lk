@@ -20,7 +20,7 @@ static struct press { uint64_t from, to; unsigned keys; } script[32];
 static int nscript;
 static uint8_t misc[512 * 1024];
 static char slot[3] = "_a";
-static int halted, halt_action, halt_reason, rgu_mode = -1;
+static int halted, halt_action, halt_reason, rgu_mode = -1, clears;
 static jmp_buf halt_jump;
 static char screen[4096];
 volatile uint8_t lk_boot_mode;
@@ -57,6 +57,7 @@ int lk_detect_key(int key)
 	       (key == LK_KEY_PMIC_HOME && (held() & T70_KEY_OTHER));
 }
 int lk_console_rows(void) { return 120; }
+void lk_console_clear(void) { clears++; screen[0] = 0; }
 void lk_console_goto(int row, int col) { (void)row; (void)col; }
 void lk_display_update(void) {}
 void lk_console_printf(const char *fmt, ...)
@@ -113,6 +114,7 @@ static void reset(void)
 	nscript = 0;
 	halted = halt_action = halt_reason = 0;
 	rgu_mode = -1;
+	clears = 0;
 	screen[0] = 0;
 	kpd_dead = 0;
 	sync_kpd();
@@ -137,6 +139,7 @@ int main(void)
 	CHECK(!halted, "halted");
 	CHECK(now_us >= 5000000 && now_us < 5100000, "wait is not 5 s");
 	CHECK(strstr(screen, "boot menu (5)") && strstr(screen, "(1)"), "no countdown");
+	CHECK(clears == 1, "screen not cleared once (the stock warning is not drawn)");
 
 	name = "key in the wait, POWER on Continue: boot this slot";
 	reset(); press(1000, 200, DOWN); press(2000, 100, PWR); run();
@@ -227,6 +230,21 @@ int main(void)
 	name = "a stuck key is ignored after 3 s";
 	reset(); press(100, 1000000, DOWN); press(5000, 100, PWR); run();
 	CHECK(!halted && strstr(screen, "T70 boot menu") && now_us < 10000000, "menu stuck");
+
+	name = "wait 0, no key: no wait, screen left as it is";
+	{
+		struct t70_cfg c;
+		t70_cfg_load(&c);
+		c.wait_ms = 0;
+		t70_cfg_save(&c);
+	}
+	reset(); run();
+	CHECK(!halted && clears == 0 && !screen[0] && now_us < 100000, "waited or drew");
+
+	name = "wait 0, volume held while booting: menu";
+	reset(); press(0, 300, DOWN); press(1000, 100, PWR); run();
+	CHECK(!halted && clears == 1 && strstr(screen, "T70 boot menu"), "menu not opened");
+	memset(misc + T70_CFG_OFFSET, 0, 512);
 
 	printf("%s\n", failures ? "FAILED" : "ALL PASS");
 	return failures != 0;

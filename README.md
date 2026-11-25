@@ -3,13 +3,14 @@
 A boot menu for the Teclast T70 Pro (MediaTek MT6789), built into the stock
 `lk` bootloader stage — in the spirit of lk2nd, but on MediaTek's own LK.
 
-Goal: boot normally by default; press any key during the stock orange-state
-warning to get a menu (slot A/B, recovery, fastboot, download mode, SD card,
+Goal: boot normally by default; press any key during the stock boot wait
+to get a menu (slot A/B, recovery, fastboot, download mode, SD card,
 EDK2/UEFI, power off), with the default kept in `misc`.
 
-**Status:** first menu. The 5 s warning wait (hook in `hooks.txt`) shows
-"Press any key for the boot menu" with a countdown; any key opens the menu
-(volume moves, power selects):
+**Status:** first menu. The stock orange-state screen (the unlocked-device
+warning and its 5 s wait) is replaced (hook in `hooks.txt`): the screen shows
+only "Press any key for the boot menu" with a countdown, and any key opens
+the menu (volume moves, power selects):
 
 - Continue (boot this slot) / Switch to the other slot and reboot
 - Recovery, Fastboot (bootloader), Fastbootd
@@ -17,16 +18,17 @@ EDK2/UEFI, power off), with the default kept in `misc`.
 - Reboot, Power off
 
 Power still held from switching the tablet on does not open the menu; a
-volume key held while booting does. Download mode, SD card and EDK2 boot are
-not done yet. Checked by `make test` (menu logic on the host),
-`make relocheck` and `make check`; not yet booted on the device.
+volume key held while booting does. With the wait set to 0 the screen is left
+as it is and only a held volume key opens the menu. Download mode, SD card
+and EDK2 boot are not done yet. Checked by `make test` (menu logic on the
+host), `make relocheck` and `make check`; not yet booted on the device.
 
 ![Boot menu: countdown, menu, switch to slot B](docs/boot-menu.gif)
 
 The picture is not a photo: `make demo` runs the menu code on the build host
 with a console the size of the stock one (2240x1400 panel, 280x87 characters)
 and draws it with the font and colours of the stock `lk`. Shown is the text
-area, enlarged 2x; on the panel the text is small, in the left middle
+area, enlarged 2x; on the panel the text is small, at the left edge
 (`out/demo/screen.png` is the whole panel at real size).
 
 ## How it works

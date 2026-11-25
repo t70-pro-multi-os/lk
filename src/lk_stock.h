@@ -10,6 +10,7 @@ int lk_detect_key(int key);
 void lk_console_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 void lk_console_goto(int row, int col);
 int lk_console_rows(void);
+void lk_console_clear(void);
 void lk_display_update(void);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;

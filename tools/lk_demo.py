@@ -22,20 +22,15 @@ from pathlib import Path
 
 LK_SHA256 = "05e0155f32c46109cad92b46e65d4943852b91c84d19c99d2e52d49443cf33b4"
 FONT = 0xB1100            # 256 glyphs x 16 rows, 1 bit per pixel, MSB left (used by f_042e38)
-ORANGE_LINES = (0xA7CAD, 0x9BB0C)   # strings printed by f_05b948 before the hooked wait
 ROWS, COLS = 87, 280
 PANEL_H = 1400            # 87 rows of 16 pixels leave 8 pixel rows at the bottom
 FG, BG = (0xA0, 0xA0, 0xA0), (0, 0, 0)  # console colours set by f_04381c
-CROP = (41, 62, 0, 76)    # rows and columns around the warning and the menu
+CROP = (35, 51, 0, 56)    # rows and columns around the menu (centred at row 43)
 SCALE = 2
 
 
-def cstring(data, off):
-    return data[off:data.index(b"\0", off)].decode("ascii")
-
-
-def frames(demo, line1, line2):
-    out = subprocess.run([demo, line1, line2], check=True, capture_output=True, text=True).stdout
+def frames(demo):
+    out = subprocess.run([demo], check=True, capture_output=True, text=True).stdout
     lines = out.split("\n")
     result = []
     for i, line in enumerate(lines):
@@ -155,7 +150,7 @@ def main():
     font = lk[FONT:FONT + 256 * 16]
     out.mkdir(parents=True, exist_ok=True)
 
-    seq = frames(demo, *(cstring(lk, off) for off in ORANGE_LINES))
+    seq = frames(demo)
     menu = next(s for t, s in seq if any("T70 boot menu" in row for row in s))
     rows = bit_rows(font, menu, (0, ROWS, 0, COLS), 1)
     write_png(out / "screen.png", COLS * 8, rows + [bytes(COLS)] * (PANEL_H - len(rows)))
@@ -163,8 +158,7 @@ def main():
     cw, ch = (c1 - c0) * 8 * SCALE, (r1 - r0) * 16 * SCALE
     write_png(out / "boot-menu.png", cw, bit_rows(font, menu, CROP, SCALE))
 
-    # The animation starts at the countdown and ends with the screen going dark for the reboot.
-    seq = seq[1:]
+    # The animation ends with the screen going dark for the reboot.
     blank = tuple(" " * COLS for _ in range(ROWS))
     seq.append((seq[-1][0] + 2500, blank))
     images, prev = [], None

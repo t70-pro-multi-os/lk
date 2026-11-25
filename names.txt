@@ -7,6 +7,7 @@
 043698 lk_console_printf     # void (const char *fmt, ...): text console under the logo
 043780 lk_console_goto       # void (int row, int col)
 0437b0 lk_console_rows       # int (void): console rows
+0437bc lk_console_clear      # void (void): fill the frame buffer with black and show it
 043b70 lk_display_update     # void (void): push the frame buffer to the panel
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)
 05b948 lk_orange_warning     # the unlocked (orange state) warning screen

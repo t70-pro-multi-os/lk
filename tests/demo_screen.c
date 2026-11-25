@@ -5,8 +5,6 @@
  * 280 columns, 87 rows) and prints every screen update as text. A scripted
  * user opens the menu, moves to "Switch to slot B" and selects it.
  * tools/lk_demo.py draws the frames with the font of your stock lk.
- *
- *   demo_screen "<stock line 1>" "<stock line 2>"   (the orange-state text)
  */
 #include <setjmp.h>
 #include <stdarg.h>
@@ -57,6 +55,7 @@ int lk_detect_key(int key) { return key == LK_KEY_POWER && (held() & T70_KEY_POW
 
 /* The stock console: goto() moves the cursor, printf() draws characters, '\n' starts the next row. */
 int lk_console_rows(void) { return ROWS; }
+void lk_console_clear(void) { memset(grid, ' ', sizeof(grid)); }
 void lk_console_goto(int row, int col)
 {
 	if (row <= ROWS && col <= COLS) {
@@ -111,20 +110,9 @@ void lk_free(void *p) { free(p); }
 
 void t70_orange_wait(void);
 
-int main(int argc, char **argv)
+int main(void)
 {
-	if (argc != 3) {
-		fprintf(stderr, "usage: %s <stock line 1> <stock line 2>\n", argv[0]);
-		return 2;
-	}
 	memset(grid, ' ', sizeof(grid));
-	/* What the stock lk does before the hooked wait (f_05b948): clear the
-	 * console, go to the middle row and print the orange-state warning. */
-	lk_console_goto(ROWS / 2, 0);
-	lk_console_printf("%s", argv[1]);
-	lk_console_printf("%s", argv[2]);
-	lk_display_update();
-
 	press(1500, 150, T70_KEY_DOWN);		/* any key: open the menu */
 	press(3000, 150, T70_KEY_DOWN);		/* move to "Switch to slot B" */
 	press(4500, 150, T70_KEY_POWER);	/* select */

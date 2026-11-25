@@ -24,11 +24,10 @@ enum action {
 
 static const uint32_t wait_choices[] = { 5000, 3000, 1000, 0 };
 
-/* First row below the stock warning (rows/2: "Orange State", blank, the
- * warning line), with one blank row between. */
+/* The menu (title, blank, items, blank, status) centred on the screen. */
 int t70_menu_row(void)
 {
-	return lk_console_rows() / 2 + 4;
+	return lk_console_rows() / 2 - (ACT_COUNT + 4) / 2;
 }
 
 /* Print one full-width line at a console row, padding over older text. */

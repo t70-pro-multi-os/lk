@@ -1,5 +1,8 @@
 # OFFSET COUNT: INSTRUCTIONS
 # Replace COUNT stock instruction words at OFFSET (lk payload) with our instructions.
 
-# Orange-state warning: "mov w0, #5000000; bl lk_delay_us" -> our wait (menu entry point).
-05b9ac 3: bl t70_orange_wait
+# Orange-state warning screen (f_05b948, unlocked device): clear the screen,
+# print "Orange State" and "OS Not Being Verified Or Custom OS. Dismiss After
+# 5 Seconds.", show it, wait 5 s -> our wait with only the menu countdown
+# (menu entry point). The stock code after it shows the screen and goes on booting.
+05b974 17: bl t70_orange_wait
