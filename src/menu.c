@@ -6,7 +6,6 @@
 #include "lk_stock.h"
 #include "t70.h"
 
-#define POLL_US		20000u
 #define IDLE_US		60000000ull	/* no key for 60 s: continue booting */
 #define WIDTH		52
 
@@ -93,20 +92,17 @@ static void draw(int sel, const struct t70_cfg *cfg)
 		line(row++, i == sel ? " > " : "   ", text[i], arg);
 	}
 	line(row++, "", "", 0);
-	lk_display_update();
 }
 
 static void status(const char *text, const char *arg)
 {
 	line(t70_menu_row() + ACT_COUNT + 3, "", text, arg);
-	lk_display_update();
 }
 
 static void clear_menu(void)
 {
 	for (int row = t70_menu_row(); row < t70_menu_row() + ACT_COUNT + 4; row++)
 		line(row, "", "", 0);
-	lk_display_update();
 }
 
 /* Wait until the keys are released; a key stuck for 3 s is ignored from then on. */
@@ -121,7 +117,7 @@ static void wait_release(void)
 			t70_keys_ignore_held(keys);
 			break;
 		}
-		lk_delay_us(POLL_US);
+		t70_poll_delay();
 	}
 }
 
@@ -211,7 +207,7 @@ void t70_menu(struct t70_cfg *cfg)
 			prev = 0;
 			draw(sel, cfg);
 		}
-		lk_delay_us(POLL_US);
+		t70_poll_delay();
 	}
 	clear_menu();
 }

@@ -39,6 +39,14 @@ unsigned t70_keys(void)
 	return keys & ~ignored;
 }
 
+/* One key poll interval. The stock lk runs the hardware watchdog with a 30 s
+ * timeout, so every wait restarts it (as the stock 5 s warning wait does). */
+void t70_poll_delay(void)
+{
+	lk_wdt_kick();
+	lk_delay_us(T70_POLL_US);
+}
+
 /* Ignore keys that are held now until they are released. */
 void t70_keys_ignore_held(unsigned keys)
 {

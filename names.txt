@@ -8,7 +8,8 @@
 043780 lk_console_goto       # void (int row, int col)
 0437b0 lk_console_rows       # int (void): console rows
 0437bc lk_console_clear      # void (void): fill the frame buffer with black and show it
-043b70 lk_display_update     # void (void): push the frame buffer to the panel
+043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);
+                             #   the stock lk sets it to 30 s (f_0037f8). Console text shows by itself.
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)
 05b948 lk_orange_warning     # the unlocked (orange state) warning screen
 01a810 lk_get_slot_suffix    # const char *(void): "_a" or "_b", the slot this lk booted

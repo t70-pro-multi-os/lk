@@ -4,7 +4,9 @@
 
 /* keys.c */
 enum t70_key { T70_KEY_UP = 1, T70_KEY_DOWN = 2, T70_KEY_POWER = 4, T70_KEY_OTHER = 8 };
+#define T70_POLL_US 20000u
 unsigned t70_keys(void);
+void t70_poll_delay(void);
 void t70_keys_ignore_held(unsigned keys);
 
 /* config.c: our settings in misc (vendor bootloader space). */

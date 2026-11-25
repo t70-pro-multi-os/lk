@@ -22,6 +22,7 @@ static uint8_t misc[512 * 1024];
 static char slot[3] = "_a";
 static int halted, halt_action, halt_reason, rgu_mode = -1, clears;
 static jmp_buf halt_jump;
+static uint64_t last_kick, kick_gap;
 static char screen[4096];
 volatile uint8_t lk_boot_mode;
 
@@ -50,7 +51,14 @@ static void sync_kpd(void)
 }
 
 uint64_t lk_time_us(void) { return now_us; }
-void lk_delay_us(uint32_t us) { now_us += us; sync_kpd(); }
+void lk_wdt_kick(void) { last_kick = now_us; }
+void lk_delay_us(uint32_t us)
+{
+	now_us += us;
+	if (now_us - last_kick > kick_gap)
+		kick_gap = now_us - last_kick;
+	sync_kpd();
+}
 int lk_detect_key(int key)
 {
 	return (key == LK_KEY_POWER && (held() & T70_KEY_POWER)) ||
@@ -59,7 +67,6 @@ int lk_detect_key(int key)
 int lk_console_rows(void) { return 120; }
 void lk_console_clear(void) { clears++; screen[0] = 0; }
 void lk_console_goto(int row, int col) { (void)row; (void)col; }
-void lk_display_update(void) {}
 void lk_console_printf(const char *fmt, ...)
 {
 	char line[256];
@@ -107,6 +114,7 @@ void t70_orange_wait(void);
 
 /* ---- cases ---- */
 static int failures;
+static const char *name;
 
 static void reset(void)
 {
@@ -115,6 +123,7 @@ static void reset(void)
 	halted = halt_action = halt_reason = 0;
 	rgu_mode = -1;
 	clears = 0;
+	last_kick = kick_gap = 0;
 	screen[0] = 0;
 	kpd_dead = 0;
 	sync_kpd();
@@ -125,13 +134,17 @@ static void run(void)
 	sync_kpd();
 	if (!setjmp(halt_jump))
 		t70_orange_wait();
+	/* The stock lk sets the watchdog to 30 s: every wait must restart it. */
+	if (kick_gap > 100000) {
+		printf("FAIL %s: watchdog not restarted for %llu ms\n", name, (unsigned long long)(kick_gap / 1000));
+		failures++;
+	}
 }
 
 #define CHECK(cond, what) do { if (!(cond)) { printf("FAIL %s: %s\n", name, what); failures++; } } while (0)
 
 int main(void)
 {
-	const char *name;
 	enum { UP = T70_KEY_UP, DOWN = T70_KEY_DOWN, PWR = T70_KEY_POWER };
 
 	name = "no key: stock 5 s wait, then boot";

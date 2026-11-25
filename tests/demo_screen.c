@@ -50,7 +50,9 @@ static void sync_kpd(void)
 }
 
 uint64_t lk_time_us(void) { return now_us; }
-void lk_delay_us(uint32_t us) { now_us += us; sync_kpd(); }
+static void emit(void);
+void lk_wdt_kick(void) {}
+void lk_delay_us(uint32_t us) { emit(); now_us += us; sync_kpd(); }
 int lk_detect_key(int key) { return key == LK_KEY_POWER && (held() & T70_KEY_POWER); }
 
 /* The stock console: goto() moves the cursor, printf() draws characters, '\n' starts the next row. */
@@ -82,8 +84,16 @@ void lk_console_printf(const char *fmt, ...)
 		cur_col++;
 	}
 }
-void lk_display_update(void)
+/* Print the screen whenever it changed (before each wait and at the end). */
+static void emit(void)
 {
+	static char shown[ROWS][COLS];
+	static int any;
+
+	if (any && !memcmp(shown, grid, sizeof(grid)))
+		return;
+	any = 1;
+	memcpy(shown, grid, sizeof(grid));
 	printf("F %llu\n", (unsigned long long)(now_us / 1000));
 	for (int r = 0; r < ROWS; r++)
 		printf("%.*s\n", COLS, grid[r]);
@@ -91,7 +101,7 @@ void lk_display_update(void)
 int lk_dprintf(const char *fmt, ...) { (void)fmt; return 0; }
 const char *lk_get_slot_suffix(void) { return "_a"; }
 int lk_set_active_slot(const char *suffix) { (void)suffix; return 0; }
-void lk_platform_halt(int action, int reason) { (void)action; (void)reason; longjmp(halt_jump, 1); }
+void lk_platform_halt(int action, int reason) { (void)action; (void)reason; emit(); longjmp(halt_jump, 1); }
 void lk_rgu_set_boot_mode(uint8_t mode) { (void)mode; }
 void *lk_bio_open(const char *name) { return strcmp(name, "misc") ? NULL : misc; }
 long lk_bio_read(void *dev, void *buf, long off, unsigned long len)
@@ -119,5 +129,6 @@ int main(void)
 	sync_kpd();
 	if (!setjmp(halt_jump))
 		t70_orange_wait();
+	emit();
 	return 0;
 }

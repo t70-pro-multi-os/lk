@@ -10,8 +10,6 @@
 #include "lk_stock.h"
 #include "t70.h"
 
-#define POLL_US 20000u
-
 void t70_orange_wait(void)
 {
 	struct t70_cfg cfg;
@@ -42,11 +40,9 @@ void t70_orange_wait(void)
 			shown = left;
 			lk_console_goto(row, 0);
 			lk_console_printf("Press any key for the boot menu (%u)   \n", left);
-			lk_display_update();
 		}
-		lk_delay_us(POLL_US);
+		t70_poll_delay();
 	}
 	lk_console_goto(row, 0);
 	lk_console_printf("                                          \n");
-	lk_display_update();
 }
