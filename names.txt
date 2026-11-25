@@ -16,6 +16,8 @@
 1809d0 lk_disp_fb_offset     # u32: byte offset of the console page (lk_fbcon->fb = lk_disp_fb + this)
 05430c lk_disp_update        # void (int x, int y, int w, int h): clean the frame buffer cache and show it
                              #   (the area is ignored: the whole buffer is shown)
+044028 lk_wdt_enable         # void (int on): 0 stops the hardware watchdog (the stock key boot menu
+                             #   f_00da08 does), 1 starts it again
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);
                              #   the stock lk sets it to 30 s (f_0037f8). Console text shows by itself.
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 2 recovery, 4 factory, 8 power-off charging, 99 fastboot)

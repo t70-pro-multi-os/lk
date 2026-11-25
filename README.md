@@ -27,6 +27,10 @@ opens the menu (volume moves, power selects):
     power at power-on) with a 60 s wait instead of 5 s: `BOOT_MISC0` in the
     always-on security block, then a watchdog reset
 - Key wait at boot 5/3/1 s or off, saved in `misc` at 0x3000 (`struct t70_cfg`)
+- Fastboot (stock) no longer resets after about 30 s: the stock lk leaves
+  its 30 s hardware watchdog running and the fastboot loop never restarts
+  it; a hook stops it when fastboot starts, as the stock key menu does
+  (`src/fastboot.c`)
 - Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a

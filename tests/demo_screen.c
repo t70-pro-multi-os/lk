@@ -76,6 +76,7 @@ static void emit(int force)
 
 uint64_t lk_time_us(void) { return now_us; }
 void lk_wdt_kick(void) {}
+void lk_wdt_enable(int on) { (void)on; }
 void t70_test_text(const char *s) { (void)s; }
 void lk_delay_us(uint32_t us) { emit(0); now_us += us; sync_kpd(); }
 int lk_detect_key(int key) { return key == LK_KEY_POWER && (held() & T70_KEY_POWER); }

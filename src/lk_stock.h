@@ -28,6 +28,7 @@ extern volatile uint8_t lk_disp_ready;		/* bit 0: the display has its frame buff
 extern uint8_t *volatile lk_disp_fb;		/* the frame buffer (three pages) */
 extern volatile uint32_t lk_disp_fb_offset;	/* the console page in it */
 void lk_wdt_kick(void);
+void lk_wdt_enable(int on);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;
 /* lk_boot_mode values (set before the mt_boot app runs, f_00d3d0). */

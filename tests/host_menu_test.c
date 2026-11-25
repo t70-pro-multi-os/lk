@@ -58,6 +58,8 @@ static void sync_kpd(void)
 
 uint64_t lk_time_us(void) { return now_us; }
 void lk_wdt_kick(void) { last_kick = now_us; }
+static int wdt_on = 1;
+void lk_wdt_enable(int on) { wdt_on = on; }
 void lk_delay_us(uint32_t us)
 {
 	now_us += us;
@@ -405,6 +407,10 @@ int main(void)
 	reset(); press(0, 300, DOWN); press(1000, 100, PWR); run();
 	CHECK(!halted && strstr(screen, "Boot options") && strstr(screen, "off"), "menu not opened");
 	memset(misc + T70_CFG_OFFSET, 0, 512);
+
+	name = "fastboot: the hardware watchdog is stopped, no idle timer";
+	wdt_on = 1;
+	CHECK(t70_fastboot_start() == 0 && wdt_on == 0, "watchdog still on");
 
 	name = "no frame buffer: the wait only, no menu";
 	lk_fbcon = NULL;
