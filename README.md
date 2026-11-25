@@ -8,28 +8,33 @@ to get a menu (slot A/B, recovery, fastboot, download mode, SD card,
 EDK2/UEFI, power off), with the default kept in `misc`.
 
 **Status:** first menu. The stock orange-state screen (the unlocked-device
-warning and its 5 s wait) is replaced (hook in `hooks.txt`): the screen shows
-only "Press any key for the boot menu" with a countdown, and any key opens
+warning and its 5 s wait) is replaced (hook in `hooks.txt`): a black screen
+with "Press any key for boot options" and a bar running down; any key opens
 the menu (volume moves, power selects):
 
-- Continue (boot this slot) / Switch to the other slot and reboot
-- Recovery, Fastboot (bootloader), Fastbootd
-- Menu key wait 5/3/1/0 s, saved in `misc` at 0x3000 (`struct t70_cfg`)
-- Reboot, Power off
+![Boot options menu](docs/menu.png)
+
+- Continue booting (this slot) / Switch to the other slot (restarts)
+- Recovery, Fastboot (bootloader), Fastbootd (userspace)
+- Key wait at boot 5/3/1 s or off, saved in `misc` at 0x3000 (`struct t70_cfg`)
+- Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a
-volume key held while booting does. With the wait set to 0 the screen is left
-as it is and only a held volume key opens the menu. Download mode, SD card
-and EDK2 boot are not done yet. Checked by `make test` (menu logic on the
-host), `make relocheck` and `make check`; not yet booted on the device.
+volume key held while booting does. With the wait off the screen is left as
+it is and only a held volume key opens the menu. Download mode, SD card and
+EDK2 boot are not done yet. Checked by `make test` (menu logic and drawing on
+the host), `make relocheck` and `make check`; not yet booted on the device.
 
-![Boot menu: countdown, menu, switch to slot B](docs/boot-menu.gif)
+The menu draws straight into the frame buffer of the stock `lk` console
+(`src/gfx.c`) with the stock 8x16 font enlarged 2-4x and smoothed
+(Scale2x/Scale3x). The colours are greys and a green, chosen so that they
+look right whichever order the panel takes red and blue in (not yet checked
+on the device).
 
-The picture is not a photo: `make demo` runs the menu code on the build host
-with a console the size of the stock one (2240x1400 panel, 280x87 characters)
-and draws it with the font and colours of the stock `lk`. Shown is the text
-area, enlarged 2x; on the panel the text is small, at the left edge
-(`out/demo/screen.png` is the whole panel at real size).
+The pictures are not photos: `make demo` runs the menu code on the build host
+with a 2240x1400 frame buffer and the font of your stock `lk`
+(`out/demo/countdown.png`, `menu.png`, `notice.png`, and
+[`menu-demo.png`](docs/menu-demo.png) as an animation).
 
 ## How it works
 

@@ -11,6 +11,19 @@ void lk_console_printf(const char *fmt, ...) __attribute__((format(printf, 1, 2)
 void lk_console_goto(int row, int col);
 int lk_console_rows(void);
 void lk_console_clear(void);
+
+/* The console frame buffer state, set up by the stock lk (f_04381c). */
+struct lk_fbcon {
+	uint8_t *fb;		/* CPU address of the first pixel; rows are width * bytes_pp apart */
+	uint32_t size;
+	uint32_t colours;	/* console colour scheme (3: grey on black) */
+	uint32_t bytes_pp;
+	uint32_t width;
+	uint32_t height;
+};
+extern struct lk_fbcon *volatile lk_fbcon;
+extern const uint8_t lk_font_8x16[256 * 16];
+void lk_disp_update(int x, int y, int w, int h);
 void lk_wdt_kick(void);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;

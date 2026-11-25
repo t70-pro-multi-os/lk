@@ -8,6 +8,10 @@
 043780 lk_console_goto       # void (int row, int col)
 0437b0 lk_console_rows       # int (void): console rows
 0437bc lk_console_clear      # void (void): fill the frame buffer with black and show it
+17e698 lk_fbcon              # struct lk_fbcon *: the console frame buffer (address, bytes per pixel, width, height)
+0b1100 lk_font_8x16          # u8[256][16]: the console font (code page 437), MSB = left pixel
+05430c lk_disp_update        # void (int x, int y, int w, int h): clean the frame buffer cache and show it
+                             #   (the area is ignored: the whole buffer is shown)
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);
                              #   the stock lk sets it to 30 s (f_0037f8). Console text shows by itself.
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)

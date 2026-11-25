@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-or-later
-"""Draw the boot menu screens as the T70 Pro shows them.
+"""Pictures of the boot menu screens as the T70 Pro shows them.
 
-tests/demo_screen runs the real menu code on the build host and prints each
-screen update as text (87 rows of 280 columns, the stock console on the
-2240x1400 panel). This script draws those frames with the 8x16 font and the
-colours of your stock lk (G3D1 V1.08) and writes:
+tests/demo_screen runs the real menu code on the build host, drawing into a
+2240x1400 frame buffer with the font of your stock lk (G3D1 V1.08), and
+prints every shown screen. This script writes them as PNG files:
 
-  screen.png      the whole panel with the menu open (real size)
-  boot-menu.png   the menu, the text area enlarged 2x
-  boot-menu.gif   the sequence: countdown, menu, move, select, reboot
+  countdown.png   the boot wait (any key opens the menu)
+  menu.png        the menu
+  notice.png      the message after choosing "Switch to slot B"
+  menu-demo.png   all of it as an animation (APNG)
 
   lk_demo.py out/stock/00-lk.bin out/demo_screen out/demo
 """
@@ -21,160 +21,83 @@ import zlib
 from pathlib import Path
 
 LK_SHA256 = "05e0155f32c46109cad92b46e65d4943852b91c84d19c99d2e52d49443cf33b4"
-FONT = 0xB1100            # 256 glyphs x 16 rows, 1 bit per pixel, MSB left (used by f_042e38)
-ROWS, COLS = 87, 280
-PANEL_H = 1400            # 87 rows of 16 pixels leave 8 pixel rows at the bottom
-FG, BG = (0xA0, 0xA0, 0xA0), (0, 0, 0)  # console colours set by f_04381c
-CROP = (35, 51, 0, 56)    # rows and columns around the menu (centred at row 43)
-SCALE = 2
 
 
-def frames(demo):
-    out = subprocess.run([demo], check=True, capture_output=True, text=True).stdout
-    lines = out.split("\n")
-    result = []
-    for i, line in enumerate(lines):
-        if line.startswith("F "):
-            screen = tuple(row.ljust(COLS) for row in lines[i + 1:i + 1 + ROWS])
-            if len(screen) != ROWS:
-                raise SystemExit("short frame from demo_screen")
-            if not result or result[-1][1] != screen:
-                result.append((int(line[2:]), screen))
+def frames(demo, lk):
+    out = subprocess.run([demo, lk], check=True, capture_output=True).stdout
+    result, pos = [], 0
+    while pos < len(out):
+        end = out.index(b"\n", pos)
+        tag, ms, w, h = out[pos:end].split()
+        if tag != b"F":
+            raise SystemExit("bad output from demo_screen")
+        w, h, n = int(w), int(h), int(w) * int(h) * 3
+        result.append((int(ms), w, h, out[end + 1:end + 1 + n]))
+        pos = end + 1 + n
     return result
 
 
-def bit_rows(font, screen, crop, scale):
-    """1-bit pixel rows (MSB = left pixel) for the text in crop, enlarged by scale."""
-    r0, r1, c0, c1 = crop
-    widen = [bytes([b]) for b in range(256)]
-    if scale == 2:
-        widen = []
-        for b in range(256):
-            v = 0
-            for bit in range(8):
-                if b & (0x80 >> bit):
-                    v |= 0xC000 >> (2 * bit)
-            widen.append(v.to_bytes(2, "big"))
-    rows = []
-    for r in range(r0, r1):
-        text = screen[r][c0:c1].encode("ascii", "replace")
-        for y in range(16):
-            row = b"".join(widen[font[ch * 16 + y]] for ch in text)
-            rows.extend([row] * scale)
-    return rows
+def chunk(kind, body):
+    return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
 
 
-def write_png(path, width, rows):
-    def chunk(kind, body):
-        return struct.pack(">I", len(body)) + kind + body + struct.pack(">I", zlib.crc32(kind + body))
-    raw = b"".join(b"\0" + r for r in rows)
-    path.write_bytes(b"\x89PNG\r\n\x1a\n"
-                     + chunk(b"IHDR", struct.pack(">IIBBBBB", width, len(rows), 1, 3, 0, 0, 0))
-                     + chunk(b"PLTE", bytes(BG + FG))
-                     + chunk(b"IDAT", zlib.compress(raw, 9))
-                     + chunk(b"IEND", b""))
+def ihdr(w, h):
+    return chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
 
 
-def lzw(pixels, min_size=2):
-    """GIF LZW (variable code size, LSB first)."""
-    clear, eoi = 1 << min_size, (1 << min_size) + 1
-    size, nxt, table = min_size + 1, eoi + 1, {}
-    out, acc, nacc = bytearray(), 0, 0
+def pixels(rgb, w, y0=0, y1=None):
+    stride = w * 3
+    y1 = len(rgb) // stride if y1 is None else y1
+    return zlib.compress(b"".join(b"\0" + rgb[y * stride:(y + 1) * stride] for y in range(y0, y1)), 9)
 
-    def emit(code):
-        nonlocal acc, nacc
-        acc |= code << nacc
-        nacc += size
-        while nacc >= 8:
-            out.append(acc & 0xFF)
-            acc >>= 8
-            nacc -= 8
 
-    emit(clear)
-    prefix = pixels[0]
-    for k in pixels[1:]:
-        key = (prefix << 8) | k
-        if key in table:
-            prefix = table[key]
-            continue
-        emit(prefix)
-        if nxt < 4096:
-            table[key] = nxt
-            if nxt == 1 << size and size < 12:
-                size += 1
-            nxt += 1
+def write_png(path, w, h, rgb):
+    path.write_bytes(b"\x89PNG\r\n\x1a\n" + ihdr(w, h) + chunk(b"IDAT", pixels(rgb, w)) + chunk(b"IEND", b""))
+
+
+def write_apng(path, w, h, seq):
+    """seq: (delay_ms, rgb) per frame; later frames only carry the rows that changed."""
+    stride = w * 3
+    out = [b"\x89PNG\r\n\x1a\n", ihdr(w, h), chunk(b"acTL", struct.pack(">II", len(seq), 0))]
+    n, prev = 0, None
+    for delay, rgb in seq:
+        y0, y1 = 0, h
+        if prev is not None:
+            changed = [y for y in range(h) if rgb[y * stride:(y + 1) * stride] != prev[y * stride:(y + 1) * stride]]
+            y0, y1 = (changed[0], changed[-1] + 1) if changed else (0, 1)
+        out.append(chunk(b"fcTL", struct.pack(">IIIIIHHBB", n, w, y1 - y0, 0, y0, delay, 1000, 0, 0)))
+        n += 1
+        data = pixels(rgb, w, y0, y1)
+        if prev is None:
+            out.append(chunk(b"IDAT", data))
         else:
-            emit(clear)
-            table, size, nxt = {}, min_size + 1, eoi + 1
-        prefix = k
-    emit(prefix)
-    emit(eoi)
-    if nacc:
-        out.append(acc & 0xFF)
-    return bytes(out)
-
-
-def write_gif(path, width, height, images):
-    """images: (delay_ms, x, y, w, h, 1-bit rows) per frame, rows cover the sub-rectangle."""
-    spread = [bytes((b >> (7 - i)) & 1 for i in range(8)) for b in range(256)]
-    gif = bytearray(b"GIF89a" + struct.pack("<HHBBB", width, height, 0x80, 0, 0) + bytes(BG + FG))
-    gif += b"\x21\xff\x0bNETSCAPE2.0\x03\x01\x00\x00\x00"          # loop forever
-    for delay, x, y, w, h, rows in images:
-        pixels = b"".join(b"".join(spread[b] for b in row)[:w] for row in rows)
-        gif += b"\x21\xf9\x04\x00" + struct.pack("<H", max(2, delay // 10)) + b"\x00\x00"
-        gif += b"\x2c" + struct.pack("<HHHHB", x, y, w, h, 0) + b"\x02"
-        data = lzw(pixels)
-        for i in range(0, len(data), 255):
-            gif += bytes([len(data[i:i + 255])]) + data[i:i + 255]
-        gif += b"\x00"
-    gif += b"\x3b"
-    path.write_bytes(bytes(gif))
-
-
-def changed_cells(prev, screen, crop):
-    """Bounding box (in cells, inside crop) of what changed since prev."""
-    r0, r1, c0, c1 = crop
-    rows = [r for r in range(r0, r1) if prev[r][c0:c1] != screen[r][c0:c1]]
-    if not rows:
-        return None
-    cols = [c for r in rows for c in range(c0, c1) if prev[r][c] != screen[r][c]]
-    return rows[0], rows[-1] + 1, min(cols), max(cols) + 1
+            out.append(chunk(b"fdAT", struct.pack(">I", n) + data))
+            n += 1
+        prev = rgb
+    out.append(chunk(b"IEND", b""))
+    path.write_bytes(b"".join(out))
 
 
 def main():
     if len(sys.argv) != 4:
         raise SystemExit(__doc__)
-    lk, demo, out = Path(sys.argv[1]).read_bytes(), sys.argv[2], Path(sys.argv[3])
-    if hashlib.sha256(lk).hexdigest() != LK_SHA256:
+    lk, demo, out = sys.argv[1], sys.argv[2], Path(sys.argv[3])
+    if hashlib.sha256(Path(lk).read_bytes()).hexdigest() != LK_SHA256:
         raise SystemExit("not the G3D1 V1.08 lk payload")
-    font = lk[FONT:FONT + 256 * 16]
     out.mkdir(parents=True, exist_ok=True)
-
-    seq = frames(demo)
-    menu = next(s for t, s in seq if any("T70 boot menu" in row for row in s))
-    rows = bit_rows(font, menu, (0, ROWS, 0, COLS), 1)
-    write_png(out / "screen.png", COLS * 8, rows + [bytes(COLS)] * (PANEL_H - len(rows)))
-    r0, r1, c0, c1 = CROP
-    cw, ch = (c1 - c0) * 8 * SCALE, (r1 - r0) * 16 * SCALE
-    write_png(out / "boot-menu.png", cw, bit_rows(font, menu, CROP, SCALE))
-
-    # The animation ends with the screen going dark for the reboot.
-    blank = tuple(" " * COLS for _ in range(ROWS))
-    seq.append((seq[-1][0] + 2500, blank))
-    images, prev = [], None
-    for i, (t, screen) in enumerate(seq):
-        delay = seq[i + 1][0] - t if i + 1 < len(seq) else 1200
-        delay = max(delay, 900)
-        box = CROP if prev is None else changed_cells(prev, screen, CROP)
-        prev = screen
-        if box is None:
-            continue
-        br0, br1, bc0, bc1 = box
-        rows = bit_rows(font, screen, box, SCALE)
-        images.append((delay, (bc0 - c0) * 8 * SCALE, (br0 - r0) * 16 * SCALE,
-                       (bc1 - bc0) * 8 * SCALE, (br1 - br0) * 16 * SCALE, rows))
-    write_gif(out / "boot-menu.gif", cw, ch, images)
-    for name in ("screen.png", "boot-menu.png", "boot-menu.gif"):
+    seq = frames(demo, lk)
+    w, h = seq[0][1], seq[0][2]
+    # countdown: before the first key (1.5 s); menu: as it opened; notice: the last screen
+    stills = {"countdown.png": next(f for f in seq if f[0] >= 600),
+              "menu.png": next(f for f in seq if f[0] >= 1500),
+              "notice.png": seq[-1]}
+    for name, (_, _, _, rgb) in stills.items():
+        write_png(out / name, w, h, rgb)
+    black = bytes(w * h * 3)
+    anim = [(max(seq[i + 1][0] - t, 100) if i + 1 < len(seq) else 2000, rgb)
+            for i, (t, _, _, rgb) in enumerate(seq)] + [(1000, black)]
+    write_apng(out / "menu-demo.png", w, h, anim)
+    for name in list(stills) + ["menu-demo.png"]:
         print(f"{out / name}: {(out / name).stat().st_size} bytes")
 
 

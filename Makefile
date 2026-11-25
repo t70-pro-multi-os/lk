@@ -41,14 +41,14 @@ HOSTCC ?= cc
 test:
 	@mkdir -p $(OUT)
 	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -DT70_HOST_TEST -Isrc \
-		-o $(OUT)/host_menu_test tests/host_menu_test.c src/orange_wait.c src/menu.c src/config.c src/keys.c
+		-o $(OUT)/host_menu_test tests/host_menu_test.c tests/sim_font.c $(filter %.c,$(EXTRA))
 	$(OUT)/host_menu_test
 
-# Pictures of the menu screens: the menu code run on the host, drawn with the
-# stock lk font (out/demo/screen.png, boot-menu.png, boot-menu.gif).
+# Pictures of the screens: the menu code run on the host, drawing into a
+# 2240x1400 frame buffer with the font of your stock lk (out/demo/*.png).
 demo: $(OUT)/stock/parts.json
-	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -DT70_HOST_TEST -Isrc \
-		-o $(OUT)/demo_screen tests/demo_screen.c src/orange_wait.c src/menu.c src/config.c src/keys.c
+	$(HOSTCC) -O2 -Wall -Wextra -Werror -DT70_HOST_TEST -Isrc \
+		-o $(OUT)/demo_screen tests/demo_screen.c tests/sim_font.c $(filter %.c,$(EXTRA))
 	$(PYTHON) tools/lk_demo.py $(OUT)/stock/00-lk.bin $(OUT)/demo_screen $(OUT)/demo
 
 clean:
