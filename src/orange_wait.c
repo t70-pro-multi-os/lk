@@ -17,7 +17,7 @@ void t70_orange_wait(void)
 	int row;
 
 	t70_cfg_load(&cfg);
-	row = lk_console_rows() / 2 + 3;
+	row = t70_menu_row();
 	/* Power still held from switching the tablet on must not open the menu;
 	 * a volume key held while booting does. */
 	t70_keys_ignore_held(t70_keys() & T70_KEY_POWER);

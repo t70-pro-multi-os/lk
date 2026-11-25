@@ -26,4 +26,5 @@ int t70_cfg_save(const struct t70_cfg *cfg);
 int t70_misc_command(const char *command);
 
 /* menu.c */
+int t70_menu_row(void);
 void t70_menu(struct t70_cfg *cfg);

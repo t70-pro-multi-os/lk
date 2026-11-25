@@ -44,7 +44,14 @@ test:
 		-o $(OUT)/host_menu_test tests/host_menu_test.c src/orange_wait.c src/menu.c src/config.c src/keys.c
 	$(OUT)/host_menu_test
 
+# Pictures of the menu screens: the menu code run on the host, drawn with the
+# stock lk font (out/demo/screen.png, boot-menu.png, boot-menu.gif).
+demo: $(OUT)/stock/parts.json
+	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -DT70_HOST_TEST -Isrc \
+		-o $(OUT)/demo_screen tests/demo_screen.c src/orange_wait.c src/menu.c src/config.c src/keys.c
+	$(PYTHON) tools/lk_demo.py $(OUT)/stock/00-lk.bin $(OUT)/demo_screen $(OUT)/demo
+
 clean:
 	rm -rf $(OUT)
 
-.PHONY: all check relocheck test clean
+.PHONY: all check relocheck test demo clean

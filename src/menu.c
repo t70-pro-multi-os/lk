@@ -24,9 +24,11 @@ enum action {
 
 static const uint32_t wait_choices[] = { 5000, 3000, 1000, 0 };
 
-static int top_row(void)
+/* First row below the stock warning (rows/2: "Orange State", blank, the
+ * warning line), with one blank row between. */
+int t70_menu_row(void)
 {
-	return lk_console_rows() / 2 + 3;	/* below the stock warning text */
+	return lk_console_rows() / 2 + 4;
 }
 
 /* Print one full-width line at a console row, padding over older text. */
@@ -81,7 +83,7 @@ static void draw(int sel, const struct t70_cfg *cfg)
 	const char *here = slot_name(lk_get_slot_suffix());
 	const char *other = here[0] == 'A' ? "B" : "A";
 	char wait[8];
-	int row = top_row();
+	int row = t70_menu_row();
 
 	wait_label(cfg->wait_ms, wait);
 	line(row++, "", "T70 boot menu   VOL: move   POWER: select", 0);
@@ -97,13 +99,13 @@ static void draw(int sel, const struct t70_cfg *cfg)
 
 static void status(const char *text, const char *arg)
 {
-	line(top_row() + ACT_COUNT + 3, "", text, arg);
+	line(t70_menu_row() + ACT_COUNT + 3, "", text, arg);
 	lk_display_update();
 }
 
 static void clear_menu(void)
 {
-	for (int row = top_row(); row < top_row() + ACT_COUNT + 4; row++)
+	for (int row = t70_menu_row(); row < t70_menu_row() + ACT_COUNT + 4; row++)
 		line(row, "", "", 0);
 	lk_display_update();
 }

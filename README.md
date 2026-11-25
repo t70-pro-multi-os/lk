@@ -21,6 +21,14 @@ volume key held while booting does. Download mode, SD card and EDK2 boot are
 not done yet. Checked by `make test` (menu logic on the host),
 `make relocheck` and `make check`; not yet booted on the device.
 
+![Boot menu: countdown, menu, switch to slot B](docs/boot-menu.gif)
+
+The picture is not a photo: `make demo` runs the menu code on the build host
+with a console the size of the stock one (2240x1400 panel, 280x87 characters)
+and draws it with the font and colours of the stock `lk`. Shown is the text
+area, enlarged 2x; on the panel the text is small, in the left middle
+(`out/demo/screen.png` is the whole panel at real size).
+
 ## How it works
 
 This repository contains no MediaTek code. At build time:
@@ -47,6 +55,7 @@ branch, literal, adrp pair, pointer and jump-table entry must still reach its
     make check STOCK_LK_IMG=/path/to/stock/lk.img     # generated source == stock lk
     make relocheck STOCK_LK_IMG=/path/to/stock/lk.img
     make test                                         # menu logic, host compiler
+    make demo STOCK_LK_IMG=/path/to/stock/lk.img      # pictures of the screens -> out/demo/
 
 Stock `lk.img`: sha256 `18f56d90f25692f8547840b644f405aae7769a97e780acbdf7f076b737c20846`,
 `lk` payload sha256 `05e0155f32c46109cad92b46e65d4943852b91c84d19c99d2e52d49443cf33b4`.
