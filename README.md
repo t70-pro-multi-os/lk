@@ -8,9 +8,9 @@ to get a menu (slot A/B, recovery, fastboot, download mode, SD card,
 EDK2/UEFI, power off), with the default kept in `misc`.
 
 **Status:** first menu. The stock orange-state screen (the unlocked-device
-warning and its 5 s wait) is replaced (hook in `hooks.txt`): a black screen
-with "Press any key for boot options" and a bar running down; any key opens
-the menu (volume moves, power selects):
+warning and its 5 s wait) is replaced (hook in `hooks.txt`): the boot logo
+stays, with only a 1 px line along the bottom edge running down; any key
+opens the menu (volume moves, power selects):
 
 ![Boot options menu](docs/menu.png)
 
@@ -32,8 +32,8 @@ record of what the wait saw in misc at 0x3200, read with `tools/lk_diag.py`)
 showed why: the console page lies over the boot logo page and its top byte
 is alpha. The stock console writes text with 0xff; we wrote 0, so everything
 was transparent. Now all drawing is opaque, and the countdown leaves the
-page transparent around its hint and bar, so the boot logo stays on screen
-while it runs and after it, as with the stock warning.
+page transparent but for its line, so the boot logo stays on screen while
+it runs and after it, as with the stock warning.
 
 The menu draws straight into the frame buffer of the stock `lk` console
 (`src/gfx.c`) with the stock 8x16 font enlarged 2-4x and smoothed

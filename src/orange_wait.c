@@ -3,9 +3,9 @@
  * Called in place of the stock orange-state warning screen (hooks.txt): the
  * stock lk would clear the screen, print the unlocked-device warning and wait
  * 5 s. We wait the configured time (default 5 s, the stock wait) with the
- * boot logo still on the screen and a hint and a bar running down under it;
- * any key during the wait, or a volume key held when it starts, opens the
- * boot menu. With the wait set to 0 and no key held the screen is left as it
+ * boot logo still on the screen and only a 1 px line along the bottom edge
+ * running down; any key during the wait, or a volume key held when it
+ * starts, opens the boot menu. With the wait set to 0 and no key held the screen is left as it
  * is. Afterwards the console page is transparent again, so the logo stays
  * while the kernel starts, as after the stock warning.
  */
@@ -13,17 +13,17 @@
 #include "lk_stock.h"
 #include "t70.h"
 
-#define BAR_W	360
-#define BAR_H	6
+#define LINE_H		1		/* the time left: a line along the bottom edge */
+#define LINE_RGB	0x8c8c8c
 
 static void bar(uint64_t left, uint64_t total)
 {
-	int x = (gfx_w() - BAR_W) / 2, y = gfx_h() - 150;
-	int w = total ? (int)((uint64_t)BAR_W * left / total) : 0;
+	int w = total ? (int)((uint64_t)gfx_w() * left / total) : 0;
+	int y = gfx_h() - LINE_H;
 
-	gfx_round(x, y, BAR_W, BAR_H, 3, 0x262626);
+	gfx_clear_rect(w, y, gfx_w() - w, LINE_H);	/* the logo page shows where time has run out */
 	if (w > 0)
-		gfx_round(x, y, w, BAR_H, 3, 0xb4b4b4);
+		gfx_fill(0, y, w, LINE_H, LINE_RGB);
 	gfx_flush();
 }
 
@@ -57,12 +57,13 @@ static void diag_console(const struct t70_cfg *cfg, unsigned keys)
 }
 
 /* What the first countdown screen left in memory: the first pixel
- * (transparent, 0) and the middle of the bar (0xffb4b4b4) in the console
- * page, then the same two in the first page of the display frame buffer. */
+ * (transparent, 0) and the middle of the bottom line (0xff8c8c8c) in the
+ * console page, then the same two in the first page of the display frame
+ * buffer. */
 static void diag_pixels(void)
 {
 	struct lk_fbcon *c = lk_fbcon;
-	unsigned long bar = ((unsigned long)(c->height - 150 + BAR_H / 2) * c->width + c->width / 2) * 4;
+	unsigned long bar = ((unsigned long)(c->height - LINE_H) * c->width + c->width / 2) * 4;
 
 	if (c->bytes_pp == 4) {
 		t70_diag_rec.px[0] = *(volatile uint32_t *)c->fb;
@@ -113,7 +114,6 @@ void t70_orange_wait(void)
 		return;
 	}
 	gfx_clear();
-	gfx_text_center(gfx_h() - 220, 2, 0x8c8c8c, "Press any key for boot options");
 	bar(limit, limit);
 #ifdef T70_DIAG
 	diag_pixels();

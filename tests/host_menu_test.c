@@ -199,7 +199,7 @@ int main(void)
 	      "console lines");
 	CHECK(d.magic == T70_DIAG_MAGIC && d.seq == 1 && d.size_of == sizeof(d) && d.stage == 6, "record");
 	CHECK(d.gfx == 0 && d.width == 2240 && d.height == 1400 && d.bytes_pp == 4 && d.disp_ready == 1, "frame buffer");
-	CHECK(d.px[0] == 0 && d.px[1] == 0xffb4b4b4 && d.px[3] == 0xffb4b4b4 && d.flushes > 40, "pixels / flushes");
+	CHECK(d.px[0] == 0 && d.px[1] == 0xff8c8c8c && d.px[3] == 0xff8c8c8c && d.flushes > 40, "pixels / flushes");
 	CHECK(d.t_entry < 100000 && d.t_last >= 17000000 && d.misc_write == 0, "times");
 	CHECK(d.kpd_samples > 500 && d.kpd_and == 0xffff && d.kpd_or == 0xffff && d.det_or == 0, "key record");
 	CHECK(strstr(screen, "keypad ffff   vol-down 0  vol-up 0  power 0  home 0") != NULL, "key line");
@@ -233,7 +233,7 @@ int main(void)
 	reset(); run();
 	CHECK(!halted, "halted");
 	CHECK(now_us >= 5000000 && now_us < 5100000, "wait is not 5 s");
-	CHECK(strstr(screen, "Press any key for boot options") != NULL, "no hint");
+	CHECK(!screen[0], "text drawn over the logo");
 	CHECK(flushes > 40 && fb_black(), "bar not running or screen not left black");
 
 	name = "key in the wait, POWER on Continue: boot this slot";

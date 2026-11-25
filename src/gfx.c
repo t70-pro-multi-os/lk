@@ -263,6 +263,15 @@ void gfx_clear(void)
 		gfx_fill(0, 0, g.w, g.h, 0);
 }
 
+/* A rectangle made transparent (RGB565: black). */
+void gfx_clear_rect(int x, int y, int w, int h)
+{
+	uint32_t v = g.bpp == 4 ? 0 : pixel(0);
+
+	for (int j = 0; j < h; j++)
+		span(x, y + j, w, v);
+}
+
 /* Everything on the screen to 3/8 of its brightness; alpha is kept. */
 void gfx_dim(void)
 {
