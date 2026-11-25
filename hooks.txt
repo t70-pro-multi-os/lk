@@ -11,3 +11,19 @@
 # always 0) -> stop the hardware watchdog, which nothing restarts while
 # fastboot waits (src/fastboot.c), and return 0 as before.
 007ba0 1: bl t70_fastboot_start
+
+# USB interrupt handler (f_057184), standard request CLEAR_FEATURE(ENDPOINT_HALT):
+# the stock code reads the endpoint index register (0x1120000e) into x8 and
+# then writes the endpoint number to the address it just read (0..15) instead
+# of to the register: a data abort and a reset. The macOS fastboot sends this
+# request whenever it opens the device. Save the index in w11, select the
+# endpoint in the register, keep the saved index in w8 as the code after
+# expects (it restores the register from w8).
+057c10 3: ldrb w11, [x8]; strb w10, [x8]; mov w8, w11
+
+# Boot mode check (f_00d3d0): a volume key held at power-on no longer picks
+# the mode (volume down: recovery, volume up: factory); it opens the boot
+# menu instead, which has both. Recovery through the misc message or the RGU
+# boot mode is unchanged. The earlier check at 0xd424 only logs the key.
+00d464 1: mov w0, wzr
+00d4a0 1: mov w0, wzr

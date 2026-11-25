@@ -31,10 +31,16 @@ opens the menu (volume moves, power selects):
   its 30 s hardware watchdog running and the fastboot loop never restarts
   it; a hook stops it when fastboot starts, as the stock key menu does
   (`src/fastboot.c`)
+- Fastboot from a Mac works: the stock USB driver crashed on the standard
+  CLEAR_FEATURE(ENDPOINT_HALT) request (it wrote the endpoint number to
+  address 0..15 instead of the index register), which the macOS fastboot
+  sends when it opens the device; fixed in place (`hooks.txt`, 0x57c10)
 - Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a
-volume key held while booting does. With the wait off the screen is left as
+volume key held while booting does (the stock lk's own key boot modes,
+volume down for recovery and volume up for factory, are turned off: both
+are in the menu). With the wait off the screen is left as
 it is and only a held volume key opens the menu. A boot whose mode is
 already chosen (recovery, factory, META, fastboot, download) does not wait.
 SD card boot, `fastboot boot` (missing from the stock fastboot) and EDK2
