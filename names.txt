@@ -1,0 +1,12 @@
+# Names for stock lk (G3D1 V1.08) code and data, by offset in the lk payload.
+# Each name becomes a linker alias that src/ can call or use.
+# Calling conventions were confirmed on the device with the 2026-11-24 key test.
+01100c lk_time_us            # u64 (void): microseconds since boot
+06c0b4 lk_delay_us           # void (u32 us): busy wait
+020530 lk_detect_key         # int (int key): bit 0 set while held; 0 recovery key, 1 volume up, 2 power
+043698 lk_console_printf     # void (const char *fmt, ...): text console under the logo
+043780 lk_console_goto       # void (int row, int col)
+0437b0 lk_console_rows       # int (void): console rows
+043b70 lk_display_update     # void (void): push the frame buffer to the panel
+0c9918 lk_boot_mode          # u8: boot mode (0 normal, 8 power-off charging)
+05b948 lk_orange_warning     # the unlocked (orange state) warning screen
