@@ -4,24 +4,29 @@
 #   make STOCK_LK_IMG=/path/to/lk.img          -> out/lk.img (stock lk + our code)
 #   make check STOCK_LK_IMG=/path/to/lk.img    -> the generated source rebuilds the stock lk
 #   make relocheck STOCK_LK_IMG=...            -> every stock reference in out/lk.img is intact
+#   make OUT=out/diag DIAG=1 STOCK_LK_IMG=...  -> diagnostic build: two lines of stock console text
+#                                                 and a record in misc (src/diag.c, tools/lk_diag.py)
 #
 # No MediaTek code is stored here: tools/lk_disasm.py turns the stock payload
 # into source under out/ at build time.
-STOCK_LK_IMG ?= $(error set STOCK_LK_IMG to the stock lk.img (sha256 18f56d90...0846))
+STOCK_LK_IMG ?=
 OUT ?= out
 PYTHON ?= python3
 EXTRA := $(sort $(wildcard src/*.c src/*.S))
+DIAG ?= 0
+XCFLAGS := $(if $(filter 1,$(DIAG)),-DT70_DIAG)
 
 all: $(OUT)/lk.img
 
 $(OUT)/stock/parts.json: $(STOCK_LK_IMG) tools/lk_img.py
-	$(PYTHON) tools/lk_img.py split $< $(OUT)/stock
+	@test -n "$(STOCK_LK_IMG)" || { echo "set STOCK_LK_IMG to the stock lk.img (sha256 18f56d90...0846)"; exit 1; }
+	$(PYTHON) tools/lk_img.py split $(STOCK_LK_IMG) $(OUT)/stock
 
 $(OUT)/gen/lk.ld: $(OUT)/stock/parts.json tools/lk_disasm.py names.txt hooks.txt
 	$(PYTHON) tools/lk_disasm.py $(OUT)/stock/00-lk.bin $(OUT)/gen --names names.txt --hooks hooks.txt >/dev/null
 
 $(OUT)/lk.bin: $(OUT)/gen/lk.ld $(EXTRA) $(wildcard src/*.h) build.mk
-	$(MAKE) -f build.mk SRC=$(OUT)/gen OUT=$(OUT)/build STOCK_LAYOUT=0 EXTRA="$(EXTRA)"
+	$(MAKE) -f build.mk SRC=$(OUT)/gen OUT=$(OUT)/build STOCK_LAYOUT=0 EXTRA="$(EXTRA)" XCFLAGS="$(XCFLAGS)"
 	cp $(OUT)/build/lk.bin $@
 
 $(OUT)/lk.img: $(OUT)/lk.bin
@@ -43,6 +48,9 @@ test:
 	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -DT70_HOST_TEST -Isrc \
 		-o $(OUT)/host_menu_test tests/host_menu_test.c tests/sim_font.c $(filter %.c,$(EXTRA))
 	$(OUT)/host_menu_test
+	$(HOSTCC) -O1 -g -Wall -Wextra -Werror -fsanitize=address,undefined -DT70_HOST_TEST -DT70_DIAG -Isrc \
+		-o $(OUT)/host_menu_test_diag tests/host_menu_test.c tests/sim_font.c $(filter %.c,$(EXTRA))
+	$(OUT)/host_menu_test_diag
 
 # Pictures of the screens: the menu code run on the host, drawing into a
 # 2240x1400 frame buffer with the font of your stock lk (out/demo/*.png).

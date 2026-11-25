@@ -4,6 +4,7 @@
 SRC ?= out/gen
 OUT ?= out/build
 EXTRA ?=
+XCFLAGS ?=
 CROSS ?= aarch64-linux-gnu-
 CC := $(CROSS)gcc
 AS := $(CROSS)as
@@ -15,7 +16,7 @@ ASFLAGS := -march=armv8.5-a+crypto+sha3+sm4 -I $(SRC)/include --defsym LK_STOCK_
 CFLAGS := -O2 -std=gnu11 -ffreestanding -fno-builtin -fno-pic -fno-pie -mgeneral-regs-only \
 	-mstrict-align -fno-stack-protector -fno-asynchronous-unwind-tables -fno-common \
 	-ffunction-sections -fdata-sections -fno-tree-loop-distribute-patterns -fno-zero-initialized-in-bss \
-	-Wall -Wextra -Werror -Wstack-usage=1024 -Isrc
+	-Wall -Wextra -Werror -Wstack-usage=1024 -Isrc $(XCFLAGS)
 
 GEN_SRCS := $(sort $(wildcard $(SRC)/text/*.S)) $(SRC)/rodata.S $(SRC)/data.S $(SRC)/bss.S
 GEN_OBJS := $(patsubst $(SRC)/%.S,$(OUT)/obj/gen/%.o,$(GEN_SRCS))

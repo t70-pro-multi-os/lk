@@ -10,6 +10,7 @@
  */
 #include "gfx.h"
 #include "lk_stock.h"
+#include "t70.h"
 
 #ifdef T70_HOST_TEST
 void t70_test_text(const char *s);
@@ -266,5 +267,8 @@ void gfx_dim(void)
 
 void gfx_flush(void)
 {
+#ifdef T70_DIAG
+	t70_diag_rec.flushes++;
+#endif
 	lk_disp_update(0, 0, g.w, g.h);
 }

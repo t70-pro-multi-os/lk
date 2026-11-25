@@ -23,7 +23,13 @@ Power still held from switching the tablet on does not open the menu; a
 volume key held while booting does. With the wait off the screen is left as
 it is and only a held volume key opens the menu. Download mode, SD card and
 EDK2 boot are not done yet. Checked by `make test` (menu logic and drawing on
-the host), `make relocheck` and `make check`; not yet booted on the device.
+the host), `make relocheck` and `make check`.
+
+On the device (slot B, 2026-11-25) this drawn menu showed nothing: no
+countdown, no menu, and the tablet booted on after the wait. The diagnostic
+build (`make OUT=out/diag DIAG=1 ...`) first prints two lines with the stock
+console, the way the stock warning did, and records what the wait saw in misc
+(block at 0x3200, read with `tools/lk_diag.py`).
 
 The menu draws straight into the frame buffer of the stock `lk` console
 (`src/gfx.c`) with the stock 8x16 font enlarged 2-4x and smoothed
@@ -63,6 +69,7 @@ branch, literal, adrp pair, pointer and jump-table entry must still reach its
     make relocheck STOCK_LK_IMG=/path/to/stock/lk.img
     make test                                         # menu logic, host compiler
     make demo STOCK_LK_IMG=/path/to/stock/lk.img      # pictures of the screens -> out/demo/
+    make OUT=out/diag DIAG=1 STOCK_LK_IMG=/path/to/stock/lk.img   # diagnostic build -> out/diag/lk.img
 
 Stock `lk.img`: sha256 `18f56d90f25692f8547840b644f405aae7769a97e780acbdf7f076b737c20846`,
 `lk` payload sha256 `05e0155f32c46109cad92b46e65d4943852b91c84d19c99d2e52d49443cf33b4`.

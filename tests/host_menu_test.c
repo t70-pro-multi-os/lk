@@ -4,7 +4,8 @@
  * gfx.c) with the stock lk functions replaced by a simulation: a clock,
  * scripted key presses, a misc partition in memory, the slot, the halt
  * request and a 2240x1400 frame buffer (AddressSanitizer checks every
- * pixel written is inside it).
+ * pixel written is inside it). Built twice: the normal build, and the
+ * diagnostic one (-DT70_DIAG, its own cases).
  * Build and run: make test
  */
 #include <setjmp.h>
@@ -70,6 +71,23 @@ static struct lk_fbcon fbcon = { NULL, 2240 * 1400 * 4, 3, 4, 2240, 1400 };
 struct lk_fbcon *volatile lk_fbcon = &fbcon;
 extern uint8_t *const sim_font;
 void lk_disp_update(int x, int y, int w, int h) { (void)x; (void)y; (void)w; (void)h; flushes++; }
+/* the display state and the stock text console, as the diagnostic build uses them */
+volatile uint8_t lk_disp_ready = 1;
+uint8_t *volatile lk_disp_fb;
+volatile uint32_t lk_disp_fb_offset;
+static char console[4096];
+int lk_console_rows(void) { return 87; }
+void lk_console_goto(int row, int col) { (void)row; (void)col; }
+void lk_console_clear(void) { console[0] = 0; }
+void lk_console_printf(const char *fmt, ...)
+{
+	va_list ap;
+	size_t n = strlen(console);
+
+	va_start(ap, fmt);
+	vsnprintf(console + n, sizeof(console) - n, fmt, ap);
+	va_end(ap);
+}
 void t70_test_text(const char *s)
 {
 	if (strlen(screen) + strlen(s) + 1 < sizeof(screen) - 1) {
@@ -134,6 +152,10 @@ static void reset(void)
 		memset(fbcon.fb, 0x5a, fbcon.size);	/* what was on the screen before */
 	last_kick = kick_gap = 0;
 	screen[0] = 0;
+	console[0] = 0;
+#ifdef T70_DIAG
+	memset(&t70_diag_rec, 0, sizeof(t70_diag_rec));	/* a new boot */
+#endif
 	kpd_dead = 0;
 	sync_kpd();
 }
@@ -158,7 +180,46 @@ int main(void)
 	for (int i = 0; i < 256 * 16; i++)
 		sim_font[i] = (uint8_t)(0x18 | (i * 37));
 	fbcon.fb = malloc(fbcon.size);
+	lk_disp_fb = fbcon.fb;
 	enum { UP = T70_KEY_UP, DOWN = T70_KEY_DOWN, PWR = T70_KEY_POWER };
+#ifdef T70_DIAG
+	/* Diagnostic build: 2 s of stock console text first, then the normal
+	 * wait, with a record in misc at every step. */
+	struct t70_diag d;
+
+	name = "diag: no key";
+	reset(); memset(misc, 0, sizeof(misc)); run();
+	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
+	CHECK(!halted && now_us >= 7000000 && now_us < 7200000, "not 2 s + 5 s");
+	CHECK(strstr(console, "t70 diag: fbcon ") && strstr(console, "2240x1400, 4 bytes per pixel; wait 5000 ms"),
+	      "console lines");
+	CHECK(d.magic == T70_DIAG_MAGIC && d.seq == 1 && d.size_of == sizeof(d) && d.stage == 6, "record");
+	CHECK(d.gfx == 0 && d.width == 2240 && d.height == 1400 && d.bytes_pp == 4 && d.disp_ready == 1, "frame buffer");
+	CHECK(d.px[0] == 0 && d.px[1] == 0xb4b4b4 && d.px[3] == 0xb4b4b4 && d.flushes > 40, "pixels / flushes");
+	CHECK(d.t_entry < 100000 && d.t_last >= 7000000 && d.misc_write == 0, "times");
+	CHECK(misc[0] == 0 && misc[0x800] == 0 && misc[T70_CFG_OFFSET] == 0, "touched other misc data");
+
+	name = "diag: the next boot counts on";
+	reset(); run();
+	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
+	CHECK(d.seq == 2 && d.stage == 6, "not counted");
+
+	name = "diag: menu, then continue";
+	reset(); press(3000, 100, DOWN); press(4000, 100, PWR); run();
+	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
+	CHECK(!halted && strstr(screen, "Boot options") && d.stage == 7, "menu not recorded");
+
+	name = "diag: no frame buffer";
+	lk_fbcon = NULL;
+	reset(); run();
+	memcpy(&d, misc + T70_DIAG_OFFSET, sizeof(d));
+	CHECK(d.stage == 2 && d.gfx == -1 && d.fbcon == 0 && strstr(console, "fbcon 0") && !strstr(console, "console"),
+	      "no frame buffer not recorded");
+	lk_fbcon = &fbcon;
+
+	printf("%s\n", failures ? "FAILED" : "ALL PASS (diagnostic build)");
+	return failures != 0;
+#endif
 
 	name = "no key: stock 5 s wait, then boot";
 	reset(); run();

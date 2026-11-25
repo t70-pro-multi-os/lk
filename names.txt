@@ -10,6 +10,10 @@
 0437bc lk_console_clear      # void (void): fill the frame buffer with black and show it
 17e698 lk_fbcon              # struct lk_fbcon *: the console frame buffer (address, bytes per pixel, width, height)
 0b1100 lk_font_8x16          # u8[256][16]: the console font (code page 437), MSB = left pixel
+1809c0 lk_disp_ready         # u8: bit 0 set by the display set-up (f_054380) once it has its
+                             #   frame buffer; without it lk_disp_update() only logs "disp has no framebuffer"
+1809c8 lk_disp_fb            # u8 *: the display frame buffer, three pages of width*4 x height
+1809d0 lk_disp_fb_offset     # u32: byte offset of the console page (lk_fbcon->fb = lk_disp_fb + this)
 05430c lk_disp_update        # void (int x, int y, int w, int h): clean the frame buffer cache and show it
                              #   (the area is ignored: the whole buffer is shown)
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);

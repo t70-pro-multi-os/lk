@@ -25,7 +25,7 @@ static void copy(void *dst, const void *src, unsigned len)
 }
 
 /* Read or write misc through a heap buffer (the lk thread stack is small). */
-static int misc_rw(long offset, uint8_t *heap_buf, unsigned len, int write)
+int t70_misc_rw(long offset, uint8_t *heap_buf, unsigned len, int write)
 {
 	void *dev = lk_bio_open("misc");
 	long done;
@@ -53,7 +53,7 @@ void t70_cfg_load(struct t70_cfg *cfg)
 	defaults(cfg);
 	if (!block)
 		return;
-	if (misc_rw(T70_CFG_OFFSET, block, BLOCK, 0) == 0) {
+	if (t70_misc_rw(T70_CFG_OFFSET, block, BLOCK, 0) == 0) {
 		struct t70_cfg got;
 
 		copy(&got, block, sizeof(got));
@@ -81,7 +81,7 @@ int t70_cfg_save(const struct t70_cfg *cfg)
 	out.crc32 = crc32(&out, sizeof(out) - sizeof(out.crc32));
 	memset(block, 0, BLOCK);
 	copy(block, &out, sizeof(out));
-	ret = misc_rw(T70_CFG_OFFSET, block, BLOCK, 1);
+	ret = t70_misc_rw(T70_CFG_OFFSET, block, BLOCK, 1);
 	lk_free(block);
 	return ret;
 }
@@ -99,7 +99,7 @@ int t70_misc_command(const char *command)
 	memset(msg, 0, MISC_MESSAGE_SIZE);
 	for (i = 0; command[i] && i < 31; i++)
 		msg[i] = command[i];
-	ret = misc_rw(0, msg, MISC_MESSAGE_SIZE, 1);
+	ret = t70_misc_rw(0, msg, MISC_MESSAGE_SIZE, 1);
 	lk_free(msg);
 	return ret;
 }

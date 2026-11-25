@@ -24,6 +24,9 @@ struct lk_fbcon {
 extern struct lk_fbcon *volatile lk_fbcon;
 extern const uint8_t lk_font_8x16[256 * 16];
 void lk_disp_update(int x, int y, int w, int h);
+extern volatile uint8_t lk_disp_ready;		/* bit 0: the display has its frame buffer */
+extern uint8_t *volatile lk_disp_fb;		/* the frame buffer (three pages) */
+extern volatile uint32_t lk_disp_fb_offset;	/* the console page in it */
 void lk_wdt_kick(void);
 int lk_dprintf(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
 extern volatile uint8_t lk_boot_mode;
