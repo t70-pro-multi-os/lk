@@ -120,7 +120,9 @@ static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 	switch (i) {
 	case ACT_CONTINUE:
 		label = "Continue booting";
-		right = join(rbuf, "slot ", next, next_slot == here[0] ? "" : ", restarts");
+		right = join(rbuf, "slot ", next,
+			     lk_boot_mode == LK_MODE_RECOVERY ? ", normal, restarts" :
+			     next_slot == here[0] ? "" : ", restarts");
 		break;
 	case ACT_SLOT:
 		label = "Boot slot";
@@ -268,6 +270,19 @@ static int do_action(int act, struct t70_cfg *cfg)
 
 	switch (act) {
 	case ACT_CONTINUE:
+		if (lk_boot_mode == LK_MODE_RECOVERY) {
+			/* opened by a volume key held in a recovery boot
+			 * (orange_wait.c): the mode came from the misc message
+			 * or the RGU and is taken already, so clear the message
+			 * and restart into a normal boot */
+			notice("Restarting to a normal boot", "Please wait");
+			if (t70_misc_command("")) {
+				notice("Could not write to misc", "Back to the menu");
+				pause_ms(2500);
+				return 0;
+			}
+			lk_platform_halt(LK_HALT_REBOOT, LK_REASON_COLD);
+		}
 		return 1;
 	case ACT_SLOT: {
 		/* only the active slot flag in misc; "Continue booting" restarts

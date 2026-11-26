@@ -49,7 +49,10 @@ volume key held while booting does (the stock lk's own key boot modes,
 volume down for recovery and volume up for factory, are turned off: both
 are in the menu). With the wait off the screen is left as
 it is and only a held volume key opens the menu. A boot whose mode is
-already chosen (recovery, factory, META, fastboot, download) does not wait.
+already chosen (recovery, factory, META, fastboot, download) does not wait,
+but a held volume key still opens the menu. In a recovery boot, "Continue
+booting" there clears the misc message and restarts into a normal boot: the
+way out when the slot's system never clears it (a recovery boot loop).
 `fastboot boot boot.img` (missing from the stock fastboot) boots a boot
 image (header v3/v4) from RAM in place of this slot's boot partition, with
 this slot's vendor_boot and init_boot (`src/fastboot.c`). SD card boot and

@@ -7,7 +7,9 @@
  * running down; any key during the wait, or a volume key held when it
  * starts, opens the boot menu. With the wait set to 0 and no key held the
  * screen is left as it is. A boot whose mode is already chosen (recovery,
- * factory, META, fastboot, download) goes on at once. Afterwards the console
+ * factory, META, fastboot, download) goes on at once, unless a volume key is
+ * held: that still opens the menu, the way out of a recovery boot the slot's
+ * system never clears from misc (a boot loop). Afterwards the console
  * page is transparent again, so the logo stays while the kernel starts, as
  * after the stock warning.
  */
@@ -107,8 +109,16 @@ void t70_orange_wait(void)
 	int no_fb;
 
 	if (mode_chosen()) {
-		lk_dprintf("t70: boot mode %u, no wait\n", lk_boot_mode);
-		DIAG(D_MODE);
+		if (!(t70_keys() & (T70_KEY_UP | T70_KEY_DOWN))) {
+			lk_dprintf("t70: boot mode %u, no wait\n", lk_boot_mode);
+			DIAG(D_MODE);
+			return;
+		}
+		lk_dprintf("t70: boot mode %u, volume key held: boot menu\n", lk_boot_mode);
+		t70_cfg_load(&cfg);
+		if (gfx_init())
+			return;
+		t70_menu(&cfg);
 		return;
 	}
 	t70_cfg_load(&cfg);

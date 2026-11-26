@@ -405,8 +405,30 @@ int main(void)
 	CHECK(!halted && strstr(screen, "Boot options") && now_us > 60000000, "bounce selected Continue");
 
 	name = "recovery boot: no wait, no menu";
-	reset(); lk_boot_mode = LK_MODE_RECOVERY; press(0, 300, DOWN); run();
+	reset(); lk_boot_mode = LK_MODE_RECOVERY; press(200, 300, DOWN); run();
 	CHECK(!halted && !screen[0] && flushes == 0 && now_us < 100000, "waited or drew");
+
+	name = "recovery boot, volume held: the menu; Continue clears misc, restarts normally";
+	reset(); memset(misc, 0, sizeof(misc));
+	strcpy((char *)misc, "boot-recovery"); strcpy((char *)misc + 0x40, "recovery\n--wipe_data");
+	misc[0x800] = '_'; misc[0x801] = 'b';
+	lk_boot_mode = LK_MODE_RECOVERY; press(0, 300, DOWN); press(1000, 100, PWR); run();
+	CHECK(strstr(screen, "Continue booting\nslot A, normal, restarts\n") != NULL, "label");
+	CHECK(halted && halt_action == LK_HALT_REBOOT && halt_reason == LK_REASON_COLD && rgu_mode == -1,
+	      "no plain restart");
+	CHECK(misc[0] == 0 && misc[0x40] == 0 && misc[0x801] == 'b', "misc message not cleared, or more cleared");
+
+	name = "recovery boot, volume held, menu left alone: recovery goes on";
+	reset(); memset(misc, 0, sizeof(misc)); strcpy((char *)misc, "boot-recovery");
+	lk_boot_mode = LK_MODE_RECOVERY; press(0, 300, DOWN); run();
+	CHECK(!halted && strstr(screen, "Boot options") && now_us > 60000000, "menu not shown or not left");
+	CHECK(!strcmp((char *)misc, "boot-recovery") && lk_boot_mode == LK_MODE_RECOVERY, "recovery changed");
+
+	name = "fastboot boot, volume held: the menu; Continue goes on in that mode";
+	reset(); memset(misc, 0, sizeof(misc));
+	lk_boot_mode = LK_MODE_FASTBOOT; press(0, 300, UP); press(1000, 100, PWR); run();
+	CHECK(!halted && strstr(screen, "Continue booting\nslot A\n") && lk_boot_mode == LK_MODE_FASTBOOT &&
+	      misc[0] == 0, "did not go on");
 
 	name = "factory and fastboot modes: no wait";
 	reset(); lk_boot_mode = LK_MODE_FACTORY; run();
