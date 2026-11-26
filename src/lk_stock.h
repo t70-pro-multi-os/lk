@@ -28,6 +28,7 @@ extern volatile uint8_t lk_disp_ready;		/* bit 0: the display has its frame buff
 extern uint8_t *volatile lk_disp_fb;		/* the frame buffer (three pages) */
 extern volatile uint32_t lk_disp_fb_offset;	/* the console page in it */
 void lk_wdt_kick(void);
+void lk_usb_phy_off(void);
 void lk_wdt_enable(int on);
 void lk_fastboot_register(const char *prefix, void *handler, int a, int b);
 void lk_fastboot_fail(const char *reason);

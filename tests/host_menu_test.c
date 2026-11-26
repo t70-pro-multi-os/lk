@@ -33,6 +33,11 @@ static int kpd_dead;
 static int kpd_sparse;	/* keypad bits without a key read 0, not 1 */
 volatile uint16_t t70_test_kpd_mem1 = 0xffff;
 volatile uint32_t t70_test_secao[0x44];
+volatile uint32_t t70_test_musb[0x1000 / 4];
+#define MUSB32(o) t70_test_musb[(o) / 4]
+static int musb_stuck;		/* transmit queue 1 never stops */
+static int phy_off, phy_off_l1intm;
+void lk_usb_phy_off(void) { phy_off++; phy_off_l1intm = MUSB32(0xa4); }
 
 static void press(uint64_t at_ms, uint64_t len_ms, unsigned keys)
 {
@@ -85,6 +90,8 @@ int lk_vmm_free_region(void *a, void *v) { (void)a; (void)v; buffer_freed++; ret
 void lk_delay_us(uint32_t us)
 {
 	now_us += us;
+	if (musb_stuck)
+		MUSB32(0xa00) |= 0x8000;
 	if (now_us - last_kick > kick_gap)
 		kick_gap = now_us - last_kick;
 	sync_kpd();
@@ -474,6 +481,42 @@ int main(void)
 		CHECK(header_from == &part, "init_boot header replaced");
 		buffer_freed = 0; t70_fastboot_buffer_free(0); t70_fastboot_buffer_unmap(0, 0);
 		CHECK(buffer_freed == 0, "buffer freed under the boot image");
+	}
+
+	name = "usb stop: controller stopped and cleared before the PHY goes off";
+	{
+		volatile uint8_t *m = (volatile uint8_t *)t70_test_musb;
+		uint64_t t0;
+
+		memset((void *)t70_test_musb, 0, sizeof(t70_test_musb));
+		MUSB32(0xa4) = 0x2f;			/* L1INTM as fastboot leaves it */
+		m[0x0b] = 0xf7; m[0x06] = 3; m[0x08] = 3;	/* interrupt enables */
+		MUSB32(0x204) = 1;			/* HSDMA channel 0 */
+		MUSB32(0x810) = 0x8001; MUSB32(0x814) = 0x1234;	/* receive queue 1, active */
+		MUSB32(0xa00) = 0x8001; MUSB32(0xa04) = 0x5678;	/* transmit queue 1, active */
+		MUSB32(0xa10) = 0x0001;			/* transmit queue 2, not active */
+		MUSB32(0xb00) = 0x10001; MUSB32(0x800) = 0x10001; MUSB32(0x808) = 0x1000000;
+		m[0x01] = 0x60;				/* SOFTCONN left on */
+		phy_off = 0;
+		t70_usb_stop();
+		CHECK(MUSB32(0xa4) == 0 && m[0x0b] == 0 && m[0x06] == 0 && m[0x08] == 0, "interrupts still enabled");
+		CHECK(MUSB32(0x204) == 0, "HSDMA channel still enabled");
+		CHECK(MUSB32(0x810) == 4 && MUSB32(0xa00) == 4, "active queues not stopped");
+		CHECK(MUSB32(0x814) == 0 && MUSB32(0xa04) == 0, "queue descriptors kept");
+		CHECK(MUSB32(0xa10) == 1, "inactive queue written");
+		CHECK(MUSB32(0xb00) == 0 && MUSB32(0x800) == 0 && MUSB32(0x808) == 0, "queue enables kept");
+		CHECK(MUSB32(0xc0c) == 0x1e03ffff && MUSB32(0xc9c) == 0xff00ffff && MUSB32(0xcbc) == 0x00ffffff &&
+		      MUSB32(0xc6c) == 0xff, "QMU interrupts not masked");
+		CHECK(!(m[0x01] & 0x40), "SOFTCONN still on");
+		CHECK(phy_off == 1 && phy_off_l1intm == 0, "PHY not powered down, or before the controller was cleared");
+
+		name = "usb stop: a queue that does not stop does not hang the boot";
+		MUSB32(0xa00) = 0x8001; MUSB32(0xa04) = 0x5678;
+		musb_stuck = 1; phy_off = 0; t0 = now_us;
+		t70_usb_stop();
+		musb_stuck = 0;
+		CHECK(phy_off == 1 && now_us - t0 <= 11000, "waited too long for the queue");
+		CHECK(MUSB32(0xa04) == 0x5678, "descriptors of a running queue cleared");
 	}
 
 	name = "no frame buffer: the wait only, no menu";

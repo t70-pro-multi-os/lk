@@ -35,6 +35,13 @@ opens the menu (volume moves, power selects):
   CLEAR_FEATURE(ENDPOINT_HALT) request (it wrote the endpoint number to
   address 0..15 instead of the index register), which the macOS fastboot
   sends when it opens the device; fixed in place (`hooks.txt`, 0x57c10)
+- Fastboot hands over a quiet USB controller: on `continue` and
+  `fastboot boot` the stock USB stop only detaches and powers the PHY down,
+  leaving the controller's interrupts enabled and its transfer queues
+  running with descriptors in lk memory; the next system (Linux, or Windows
+  through UEFI) then got an interrupt it did not expect. The queues are now
+  stopped and every controller interrupt masked and cleared first, and the
+  result is logged ("t70: usb stop", `src/usb.c`)
 - Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a

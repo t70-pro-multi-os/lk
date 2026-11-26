@@ -28,6 +28,8 @@
 014fa4 lk_mblock_free        # int (u64 pa): gives a reserved block back (the fastboot buffer, f_008228)
 06b140 lk_vmm_free_region    # int (void *aspace, void *va): unmaps it
 00d268 lk_boot_images_set    # (boot, vendor_boot, init_boot): the images the boot code uses
+059fb4 lk_usb_phy_off       # void (void): USB PHY power-down, the end of the stock USB stop (f_058c90);
+                             #   the controller registers are not reached after it
 044028 lk_wdt_enable         # void (int on): 0 stops the hardware watchdog (the stock key boot menu
                              #   f_00da08 does), 1 starts it again
 043b70 lk_wdt_kick           # void (void): restart the hardware watchdog (TOPRGU +0x08 = 0x1971);

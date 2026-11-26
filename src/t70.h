@@ -79,5 +79,8 @@ void t70_boot_images_set(void *boot, void *vendor_boot, void *init_boot);
 int t70_fastboot_buffer_free(unsigned long pa);
 int t70_fastboot_buffer_unmap(void *aspace, void *va);
 
+/* usb.c */
+void t70_usb_stop(void);
+
 /* menu.c */
 void t70_menu(struct t70_cfg *cfg);

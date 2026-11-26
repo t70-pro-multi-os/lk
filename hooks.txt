@@ -36,3 +36,11 @@
 05b698 1: bl t70_boot_images_set
 0087d8 1: bl t70_fastboot_buffer_free
 0087e8 1: bl t70_fastboot_buffer_unmap
+
+# USB stop (f_058c90, the fastboot USB transport stop, called when fastboot
+# hands over on "continue" and "fastboot boot"): the stock masks the GIC
+# interrupt and clears SOFTCONN, then powers the PHY down, but leaves the
+# controller armed (L1INTM, active QMU queues with descriptors in lk heap,
+# interrupt enables). Its PHY power-down call -> stop and clear the
+# controller first, then power the PHY down (src/usb.c).
+058cc0 1: bl t70_usb_stop

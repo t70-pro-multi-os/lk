@@ -30,6 +30,8 @@ static jmp_buf halt_jump;
 volatile uint8_t lk_boot_mode;
 volatile uint16_t t70_test_kpd_mem1 = 0xffff;
 volatile uint32_t t70_test_secao[0x44];
+volatile uint32_t t70_test_musb[0x1000 / 4];
+void lk_usb_phy_off(void) {}
 static struct lk_fbcon fbcon = { NULL, W * H * 4, 3, 4, W, H };
 struct lk_fbcon *volatile lk_fbcon = &fbcon;
 extern uint8_t *const sim_font;
