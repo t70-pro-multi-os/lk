@@ -42,6 +42,14 @@ opens the menu (volume moves, power selects):
   through UEFI) then got an interrupt it did not expect. The queues are now
   stopped and every controller interrupt masked and cleared first, and the
   result is logged ("t70: usb stop", `src/usb.c`)
+- An unlocked tablet boots images AVB cannot read: the stock lets
+  verification errors through when unlocked (unsigned images, wrong
+  hashes), but a boot image with no AVB footer in a partition vbmeta chains
+  to (written without `avbtool`), or a vbmeta libavb cannot parse, left the
+  boot code with no images at all. Then boot, vendor_boot and
+  init_boot are now loaded as they are, sized by their image headers, as
+  libavb does when vbmeta has verification disabled ("t70: avb" in the log,
+  `src/avb.c`). A locked tablet is unchanged.
 - Restart, Power off
 
 Power still held from switching the tablet on does not open the menu; a

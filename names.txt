@@ -50,3 +50,8 @@
 06c7c8 lk_free               # void (void *ptr)
 06dcec memset                # void *(void *s, int c, unsigned long n)
 06f520 lk_dprintf            # int (const char *fmt, ...): LK log, not the screen
+089944 lk_avb_slot_verify    # int (AvbOps *, const char *const *partitions, const char *suffix, u32 flags,
+                             #   int hashtree_error_mode, AvbSlotVerifyData **out): libavb avb_slot_verify
+08c3c8 lk_avb_malloc         # void *(size_t): libavb avb_malloc, from the 140 MiB AVB pool (never freed)
+08c454 lk_avb_calloc         # void *(size_t): avb_calloc, same pool, zeroed
+08c4fc lk_avb_strdup         # char *(const char *): avb_strdup, same pool

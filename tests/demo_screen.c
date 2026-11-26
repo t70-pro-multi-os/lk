@@ -113,6 +113,11 @@ long lk_bio_write(void *dev, const void *buf, long off, unsigned long len)
 void lk_bio_close(void *dev) { (void)dev; }
 void *lk_malloc(unsigned long size) { return malloc(size); }
 void lk_free(void *p) { free(p); }
+int lk_avb_slot_verify(void *o, const char *const *p, const char *s, unsigned f, int m, void **d)
+{ (void)o; (void)p; (void)s; (void)f; (void)m; (void)d; return 0; }
+void *lk_avb_malloc(size_t n) { (void)n; return NULL; }
+void *lk_avb_calloc(size_t n) { (void)n; return NULL; }
+char *lk_avb_strdup(const char *s) { (void)s; return NULL; }
 
 void t70_orange_wait(void);
 

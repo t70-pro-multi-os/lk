@@ -44,3 +44,10 @@
 # interrupt enables). Its PHY power-down call -> stop and clear the
 # controller first, then power the PHY down (src/usb.c).
 058cc0 1: bl t70_usb_stop
+
+# Boot verification (f_05af38): its avb_slot_verify call -> the same call,
+# and on an unlocked device that got no slot data from it (an image with no
+# AVB footer in a partition vbmeta chains to, a vbmeta libavb cannot parse:
+# errors ALLOW_VERIFICATION_ERROR does not let through), the requested
+# partitions loaded as they are, sized by their image headers (src/avb.c).
+05b3e4 1: bl t70_avb_slot_verify

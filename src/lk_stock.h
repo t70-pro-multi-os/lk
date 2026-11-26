@@ -80,3 +80,11 @@ void lk_bio_close(void *dev);
 void *lk_malloc(unsigned long size);
 void lk_free(void *ptr);
 void *memset(void *s, int c, size_t n);
+
+/* libavb in the stock lk (src/avb.c). Its allocator hands out a 140 MiB pool
+ * (f_08f444) and never frees. */
+int lk_avb_slot_verify(void *ops, const char *const *partitions, const char *suffix,
+		       unsigned flags, int hashtree_mode, void **out_data);
+void *lk_avb_malloc(size_t size);
+void *lk_avb_calloc(size_t size);
+char *lk_avb_strdup(const char *s);

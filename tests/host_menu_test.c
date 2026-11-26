@@ -170,6 +170,85 @@ void lk_bio_close(void *dev) { (void)dev; }
 void *lk_malloc(unsigned long size) { return malloc(size); }
 void lk_free(void *p) { free(p); }
 
+/* libavb as the stock lk has it (src/avb.c): avb_slot_verify gives what the
+ * case sets; the pool allocator fails past avb_pool bytes. Partitions of the
+ * slot live in avb_parts. */
+static int avb_result, avb_verify_calls;
+static void *avb_data;
+static size_t avb_pool, avb_used;
+static int avb_reads, avb_unlocked_op = 1;
+static struct { const char *name; uint8_t *data; uint64_t size; } avb_parts[4];
+int lk_avb_slot_verify(void *o, const char *const *p, const char *s, unsigned f, int m, void **d)
+{
+	(void)o; (void)p; (void)s; (void)f; (void)m;
+	avb_verify_calls++;
+	*d = avb_data;
+	return avb_result;
+}
+static uint8_t avb_pool_mem[1 << 20] __attribute__((aligned(64)));
+void *lk_avb_malloc(size_t n)
+{
+	void *p;
+
+	n = (n + 63) & ~(size_t)63;
+	if (avb_used + n > avb_pool || avb_used + n > sizeof(avb_pool_mem))
+		return NULL;
+	p = avb_pool_mem + avb_used;
+	avb_used += n;
+	return p;
+}
+void *lk_avb_calloc(size_t n)
+{
+	void *p = lk_avb_malloc(n);
+	return p ? memset(p, 0, n) : NULL;
+}
+char *lk_avb_strdup(const char *s)
+{
+	char *p = lk_avb_malloc(strlen(s) + 1);
+	return p ? strcpy(p, s) : NULL;
+}
+struct test_avb_ops {
+	void *user_data, *ab_ops, *atx_ops;
+	int (*read)(struct test_avb_ops *, const char *, int64_t, size_t, void *, size_t *);
+	void *preloaded, *write, *validate_key, *read_rollback, *write_rollback;
+	int (*unlocked)(struct test_avb_ops *, _Bool *);
+	void *guid;
+	int (*size)(struct test_avb_ops *, const char *, uint64_t *);
+};
+static int avb_find(const char *name)
+{
+	for (int i = 0; i < 4; i++)
+		if (avb_parts[i].name && !strcmp(avb_parts[i].name, name))
+			return i;
+	return -1;
+}
+static int avb_op_read(struct test_avb_ops *o, const char *name, int64_t off, size_t n, void *buf, size_t *got)
+{
+	int i = avb_find(name);
+	(void)o;
+	if (i < 0 || off < 0 || (uint64_t)off + n > avb_parts[i].size)
+		return 2;
+	memcpy(buf, avb_parts[i].data + off, n);
+	*got = n;
+	avb_reads++;
+	return 0;
+}
+static int avb_op_unlocked(struct test_avb_ops *o, _Bool *out) { (void)o; *out = avb_unlocked_op; return 0; }
+static int avb_op_size(struct test_avb_ops *o, const char *name, uint64_t *out)
+{
+	int i = avb_find(name);
+	(void)o;
+	if (i < 0)
+		return 2;
+	*out = avb_parts[i].size;
+	return 0;
+}
+static struct test_avb_ops avb_ops = { .read = avb_op_read, .unlocked = avb_op_unlocked, .size = avb_op_size };
+struct test_avb_part { char *name; uint8_t *data; size_t size; _Bool preloaded; int verify_result; };
+struct test_avb_slot { char *suffix; void *vbmeta; size_t nvbmeta; struct test_avb_part *parts; size_t nparts;
+	char *cmdline; uint64_t rollback[32]; int hashtree_mode; };
+static void put32(uint8_t *p, uint32_t v) { p[0] = v; p[1] = v >> 8; p[2] = v >> 16; p[3] = v >> 24; }
+
 void t70_orange_wait(void);
 
 /* ---- cases ---- */
@@ -539,6 +618,92 @@ int main(void)
 		musb_stuck = 0;
 		CHECK(phy_off == 1 && now_us - t0 <= 11000, "waited too long for the queue");
 		CHECK(MUSB32(0xa04) == 0x5678, "descriptors of a running queue cleared");
+	}
+
+	name = "avb: header sizes";
+	{
+		static uint8_t h[4096];
+		const uint64_t part = 0x4000000;
+
+		CHECK(t70_avb_image_size(h, part) == part, "unknown image not the whole partition");
+		memcpy(h, "ANDROID!", 8); put32(h + 8, 0x5001); put32(h + 12, 0x2000); put32(h + 40, 4); put32(h + 1580, 0x1000);
+		CHECK(t70_avb_image_size(h, part) == 0x1000 + 0x6000 + 0x2000 + 0x1000, "boot v4 size");
+		put32(h + 40, 3);
+		CHECK(t70_avb_image_size(h, part) == 0x1000 + 0x6000 + 0x2000, "boot v3 size (no signature)");
+		put32(h + 40, 2);
+		CHECK(t70_avb_image_size(h, part) == part, "boot v2 not the whole partition");
+		put32(h + 40, 4); put32(h + 8, 0x7fffffff);
+		CHECK(t70_avb_image_size(h, 0x800000) == 0x800000, "size past the partition not capped");
+		memset(h, 0, sizeof(h));
+		memcpy(h, "VNDRBOOT", 8); put32(h + 8, 4); put32(h + 12, 4096); put32(h + 24, 0x10001);
+		put32(h + 2096, 2128); put32(h + 2100, 0x3000); put32(h + 2112, 0x80); put32(h + 2124, 0x10);
+		CHECK(t70_avb_image_size(h, part) == 0x1000 + 0x11000 + 0x3000 + 0x1000 + 0x1000, "vendor_boot v4 size");
+		put32(h + 12, 3000);
+		CHECK(t70_avb_image_size(h, part) == part, "odd vendor_boot page size used");
+		memset(h, 0, sizeof(h));
+	}
+
+	name = "avb: unlocked, no slot data: boot, vendor_boot, init_boot loaded by their headers";
+	{
+		static uint8_t boot[0x40000], vboot[0x40000], iboot[0x8000];
+		const char *const req[] = { "boot", "vendor_boot", "init_boot", NULL };
+		struct test_avb_slot *d = NULL, given;
+		int r;
+
+		for (unsigned i = 0; i < sizeof(boot); i++) boot[i] = vboot[i] = (uint8_t)(i * 7 + 1);
+		for (unsigned i = 0; i < sizeof(iboot); i++) iboot[i] = (uint8_t)(i * 3);
+		memcpy(boot, "ANDROID!", 8); put32(boot + 8, 0x3000); put32(boot + 12, 0); put32(boot + 40, 4); put32(boot + 1580, 0);
+		memset(boot + 1580, 0, 4);
+		memcpy(vboot, "VNDRBOOT", 8); put32(vboot + 8, 4); put32(vboot + 12, 4096); put32(vboot + 24, 0x2000);
+		put32(vboot + 2096, 2128); put32(vboot + 2100, 0x1000); put32(vboot + 2112, 0); put32(vboot + 2124, 0);
+		avb_parts[0].name = "boot_b"; avb_parts[0].data = boot; avb_parts[0].size = sizeof(boot);
+		avb_parts[1].name = "vendor_boot_b"; avb_parts[1].data = vboot; avb_parts[1].size = sizeof(vboot);
+		avb_parts[2].name = "init_boot_b"; avb_parts[2].data = iboot; avb_parts[2].size = sizeof(iboot);
+
+		/* locked: the stock result as it is, nothing read */
+		avb_result = 3; avb_data = NULL; avb_pool = 1 << 24; avb_used = 0; avb_reads = 0;
+		r = t70_avb_slot_verify(&avb_ops, req, "_b", 0, 0, (void **)&d);
+		CHECK(r == 3 && !d && avb_reads == 0, "locked device: loaded without verification");
+
+		/* unlocked and verification gave slot data: kept */
+		avb_data = &given;
+		r = t70_avb_slot_verify(&avb_ops, req, "_b", 1, 0, (void **)&d);
+		CHECK(r == 3 && d == &given && avb_reads == 0, "slot data from verification replaced");
+
+		/* the flag but the device says locked: nothing */
+		avb_data = NULL; avb_unlocked_op = 0; d = NULL;
+		r = t70_avb_slot_verify(&avb_ops, req, "_b", 1, 0, (void **)&d);
+		CHECK(!d && avb_reads == 0, "loaded on a device that says it is locked");
+		avb_unlocked_op = 1;
+
+		/* unlocked, no slot data: loaded */
+		avb_verify_calls = 0;
+		r = t70_avb_slot_verify(&avb_ops, req, "_b", 1 | 4, 2, (void **)&d);
+		CHECK(avb_verify_calls == 1 && r == 3, "verification not called once, or its result changed");
+		CHECK(d && d->nparts == 3 && d->nvbmeta == 0, "not three partitions");
+		if (d && d->nparts == 3) {
+			CHECK(!strcmp(d->parts[0].name, "boot") && !strcmp(d->parts[1].name, "vendor_boot") &&
+			      !strcmp(d->parts[2].name, "init_boot"), "names (without suffix)");
+			CHECK(d->parts[0].size == 0x1000 + 0x3000, "boot not sized by its header");
+			CHECK(d->parts[1].size == 0x1000 + 0x2000 + 0x1000, "vendor_boot not sized by its header");
+			CHECK(d->parts[2].size == sizeof(iboot), "unknown image not the whole partition");
+			CHECK(!memcmp(d->parts[0].data, boot, d->parts[0].size) &&
+			      !memcmp(d->parts[1].data, vboot, d->parts[1].size) &&
+			      !memcmp(d->parts[2].data, iboot, d->parts[2].size), "data not the partitions'");
+			CHECK(!d->parts[0].preloaded && !d->parts[0].verify_result, "flags");
+			CHECK(!strcmp(d->suffix, "_b") && d->hashtree_mode == 2, "suffix or hashtree mode");
+			CHECK(d->cmdline && strlen(d->cmdline) >= strlen("androidboot.vbmeta.hash_alg") &&
+			      strstr(d->cmdline, "androidboot.vbmeta.device_state=unlocked"), "command line");
+		}
+
+		name = "avb: a missing partition is skipped, no memory gives no slot data";
+		avb_parts[2].name = NULL; d = NULL;
+		t70_avb_slot_verify(&avb_ops, req, "_b", 1, 0, (void **)&d);
+		CHECK(d && d->nparts == 2, "missing init_boot not skipped");
+		avb_pool = avb_used + 0x2000; d = NULL;
+		t70_avb_slot_verify(&avb_ops, req, "_b", 1, 0, (void **)&d);
+		CHECK(!d, "slot data without images");
+		memset(avb_parts, 0, sizeof(avb_parts));
 	}
 
 	name = "no frame buffer: the wait only, no menu";

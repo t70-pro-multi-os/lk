@@ -82,5 +82,10 @@ int t70_fastboot_buffer_unmap(void *aspace, void *va);
 /* usb.c */
 void t70_usb_stop(void);
 
+/* avb.c */
+int t70_avb_slot_verify(void *ops, const char *const *partitions, const char *suffix,
+			unsigned flags, int hashtree_mode, void **out_data);
+uint64_t t70_avb_image_size(const uint8_t *header, uint64_t part_size);
+
 /* menu.c */
 void t70_menu(struct t70_cfg *cfg);
