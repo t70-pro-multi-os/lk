@@ -138,6 +138,10 @@ static int fb_black(void)
 	return 1;
 }
 int lk_dprintf(const char *fmt, ...) { (void)fmt; return 0; }
+/* As the stock lk has them: lk_get_slot_suffix reads boot_ctrl in misc on
+ * every call and gives the slot with the higher priority, so once
+ * lk_set_active_slot has written it, it gives the new slot, not the one
+ * running. */
 const char *lk_get_slot_suffix(void) { return slot; }
 int lk_set_active_slot(const char *suffix)
 {
@@ -145,6 +149,7 @@ int lk_set_active_slot(const char *suffix)
 		return -1;
 	misc[0x800] = suffix[0];	/* stands in for boot_ctrl */
 	misc[0x801] = suffix[1];
+	strcpy(slot, suffix);
 	return 0;
 }
 void lk_platform_halt(int action, int reason)
@@ -273,6 +278,7 @@ static void reset(void)
 	kpd_dead = 0;
 	kpd_sparse = 0;
 	lk_boot_mode = LK_MODE_NORMAL;
+	strcpy(slot, "_a");	/* slot A active in misc, and booting */
 	sync_kpd();
 }
 

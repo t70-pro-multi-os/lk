@@ -36,8 +36,12 @@
                              #   the stock lk sets it to 30 s (f_0037f8). Console text shows by itself.
 0c9918 lk_boot_mode          # u8: boot mode (0 normal, 2 recovery, 4 factory, 8 power-off charging, 99 fastboot)
 05b948 lk_orange_warning     # the unlocked (orange state) warning screen
-01a810 lk_get_slot_suffix    # const char *(void): "_a" or "_b", the slot this lk booted
-01ac70 lk_set_active_slot    # int (const char *suffix): "_a"/"_b" -> misc boot_ctrl; 0 on success
+01a810 lk_get_slot_suffix    # const char *(void): "_a" or "_b": reads boot_ctrl in misc (0x800) on every
+                             #   call, the slot with the higher priority (not the slot running: it
+                             #   changes as soon as lk_set_active_slot writes)
+01ac70 lk_set_active_slot    # int (const char *suffix): "_a"/"_b" -> misc boot_ctrl (that slot priority 7,
+                             #   7 tries, not yet successful; the other at most 6) and the UFS boot
+                             #   LUN ("bootdevice"); 0 on success
 01cc24 lk_platform_halt      # void (int action, int reason): action 1 reboot, 2 power off;
                              #   reason 1 PMIC cold reset, 7 watchdog reset (keeps the RGU boot mode)
 043a74 lk_rgu_set_boot_mode  # void (u8 mode): TOPRGU +0x24 bits 0-3 for the next boot:

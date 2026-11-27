@@ -29,6 +29,12 @@ enum action {
 static const uint32_t wait_choices[] = { 5000, 3000, 1000, 0 };
 static int dimmed = 0;	/* the menu behind a message box is darkened (in .data) */
 static char next_slot = 'A';	/* the slot "Boot slot" has made active (in .data) */
+/* The slot this boot loaded its images from (in .data). The stock
+ * lk_get_slot_suffix does not tell the slot running: it reads boot_ctrl in
+ * misc on every call and gives the slot with the higher priority, so once
+ * "Boot slot" has written misc it gives the new one. It is read once, when
+ * the menu opens. */
+static char this_slot = 'A';
 
 /* Colours: greys and one green that stays green whichever order the panel
  * takes red and blue in (not confirmed on the device yet). */
@@ -111,7 +117,6 @@ static const char *wait_text(uint32_t ms, char *buf)
 
 static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 {
-	const char *here = slot_name(lk_get_slot_suffix());
 	const char next[2] = { next_slot, 0 };
 	char rbuf[48], wbuf[8];
 	const char *label = "", *right = "";
@@ -122,11 +127,11 @@ static void draw_item(int i, int selected, const struct t70_cfg *cfg)
 		label = "Continue booting";
 		right = join(rbuf, "slot ", next,
 			     lk_boot_mode == LK_MODE_RECOVERY ? ", normal, restarts" :
-			     next_slot == here[0] ? "" : ", restarts");
+			     next_slot == this_slot ? "" : ", restarts");
 		break;
 	case ACT_SLOT:
 		label = "Boot slot";
-		right = join(rbuf, next, next_slot == here[0] ? "  (this boot)" : "  (next boot)", 0);
+		right = join(rbuf, next, next_slot == this_slot ? "  (this boot)" : "  (next boot)", 0);
 		break;
 	case ACT_RECOVERY:
 		label = "Recovery";
@@ -193,7 +198,7 @@ static int keycap(int x, int y, const char *key)
 static void draw(int sel, const struct t70_cfg *cfg)
 {
 	static const char *const hint[2][2] = { { "VOL \x1e\x1f", "Move" }, { "POWER", "Select" } };
-	const char *here = slot_name(lk_get_slot_suffix());
+	const char here[2] = { this_slot, 0 };
 	char sub[48];
 	int x = col_x();
 
@@ -353,7 +358,7 @@ void t70_menu(struct t70_cfg *cfg)
 	uint64_t idle;
 
 	lk_dprintf("t70: boot menu\n");
-	next_slot = slot_name(lk_get_slot_suffix())[0];
+	this_slot = next_slot = slot_name(lk_get_slot_suffix())[0];
 	draw(sel, cfg);
 	wait_release();
 	prev = last_raw = 0;
@@ -394,7 +399,7 @@ void t70_menu(struct t70_cfg *cfg)
 #endif
 		t70_poll_delay();
 	}
-	if (next_slot != slot_name(lk_get_slot_suffix())[0]) {
+	if (next_slot != this_slot) {
 		char t[48];
 
 		notice(join(t, "Restarting to slot ", (char[2]){ next_slot, 0 }, 0), "Please wait");
